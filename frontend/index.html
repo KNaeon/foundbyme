@@ -1,0 +1,49 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vector Search Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <h1>📚 Vector Search Demo</h1>
+    <p class="subtitle">문서 → 임베딩 → 벡터DB → 검색 결과 흐름 시각화</p>
+
+    <div class="search-panel">
+      <input id="query" type="text" placeholder="검색어를 입력하세요 (예: 미세먼지, OSS, vector db)" />
+      <button id="searchBtn">검색</button>
+    </div>
+
+    <div class="pipeline">
+      <div class="step" id="step-input">
+        <div class="step-title">1. Query 입력</div>
+        <div class="step-body" id="step-input-body">사용자 질의가 여기에 표시됩니다.</div>
+      </div>
+      <div class="arrow">➡</div>
+      <div class="step" id="step-embed">
+        <div class="step-title">2. 임베딩 생성</div>
+        <div class="step-body">문장을 벡터(숫자 배열)로 변환합니다.</div>
+      </div>
+      <div class="arrow">➡</div>
+      <div class="step" id="step-vdb">
+        <div class="step-title">3. 벡터DB 검색</div>
+        <div class="step-body">벡터 공간에서 가장 가까운 문서를 찾습니다.</div>
+      </div>
+      <div class="arrow">➡</div>
+      <div class="step" id="step-result">
+        <div class="step-title">4. 결과 반환</div>
+        <div class="step-body">검색 결과가 여기에 나타납니다.</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <h2>검색 결과</h2>
+      <ul id="resultsList"></ul>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
