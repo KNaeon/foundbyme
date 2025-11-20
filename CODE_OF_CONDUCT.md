@@ -1,57 +1,62 @@
 # Contributor Code of Conduct
 
-As contributors and maintainers of **FoundByMe**, we are committed to providing a welcoming, safe, and collaborative environment for everyone.
+As contributors and maintainers of **FoundByMe**, we are committed to fostering a welcoming, safe, and collaborative environment for everyone.
 
-This Code of Conduct is based on the Contributor Covenant, version 2.1.
+This Code of Conduct is adapted from the **Contributor Covenant v2.1**, a widely used standard in open-source communities.
 
 ---
 
 ## 💎 Our Standards
 
 ### Positive behaviors include:
-- Using respectful and inclusive language
-- Being considerate of different viewpoints and experiences
-- Giving constructive feedback
-- Showing empathy toward others
-- Gracefully accepting suggestions, revisions, and constructive criticism
+- Using respectful and inclusive language  
+- Being considerate of different viewpoints  
+- Giving constructive and empathetic feedback  
+- Accepting suggestions and criticism gracefully  
+- Supporting an environment focused on learning and collaboration  
 
 ### Unacceptable behaviors include:
-- Harassment or discrimination in any form
-- Personal attacks or insulting comments
-- Publishing others’ private information without permission
-- Any conduct that could be interpreted as abusive, harmful, or disrespectful
-- Repeatedly disrupting discussions or project processes
+- Harassment, discrimination, or derogatory comments  
+- Personal attacks or insults  
+- Publishing others’ private information without permission  
+- Intentionally disruptive or harmful behavior  
+- Repeated violation of community boundaries  
 
 ---
 
 ## 🛠 Enforcement Responsibilities
 
-- Contributors and maintainers are responsible for clarifying and enforcing standards of acceptable behavior.
-- The project team may take appropriate corrective action, including warnings, temporary ban, or permanent removal from the project community.
+Project maintainers are responsible for:
+- Clarifying acceptable behavior  
+- Taking appropriate corrective action when violations occur  
+- Ensuring fair, consistent, and confidential handling of reports  
+
+They may take actions such as warnings, temporary bans, or—if necessary—permanent removal from the project community.
 
 ---
 
 ## 🚨 Reporting Violations
 
-If you experience or witness unacceptable behavior, please report it to:
+If you experience or witness unacceptable behavior, report it to:
 
-📧 **kimhabin5@sju.ac.kr** **iameon@sju.ac.kr** **leejh00610@gmail.com**
+📧 **kimhabin5@sju.ac.kr**  
+📧 **iameon@sju.ac.kr**  
+📧 **leejh00610@gmail.com**
 
-Reports will be treated confidentially.  
-All complaints will be reviewed and addressed in a fair, consistent manner.
+All reports will be kept confidential and reviewed promptly.
 
 ---
 
 ## ⚖️ Enforcement Guidelines
 
 **1. Warning**  
-For minor infractions, a private warning may be issued.
+For minor or accidental violations.
 
 **2. Temporary Ban**  
-For repeated or severe violations, the contributor may be temporarily banned.
+For repeated or significant violations.
 
 **3. Permanent Ban**  
-Severe or repeated harmful behavior may result in permanent removal from the project.
+For severe or repeated harmful behavior.
 
 ---
 
@@ -60,4 +65,3 @@ Severe or repeated harmful behavior may result in permanent removal from the pro
 This Code of Conduct is adapted from the  
 **Contributor Covenant v2.1**  
 https://www.contributor-covenant.org/version/2/1/code_of_conduct/
-
