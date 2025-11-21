@@ -5,6 +5,9 @@
 Instead of relying on keyword matching, it converts text into **vector embeddings** and retrieves documents based on **semantic meaning**.  
 It helps users quickly find relevant information across multiple files — no need to open every document manually.
 
+# The goal is simplicity: a lightweight, local-first tool that allows fast meaning-based search across your files.
+
+
 ---
 
 ## ✨ Features
@@ -32,7 +35,7 @@ It helps users quickly find relevant information across multiple files — no ne
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/name/foundbyme.git
+git clone https://github.com/KNaeon/foundbyme
 cd foundbyme
 ````
 
@@ -63,6 +66,9 @@ print(results)
 
 ---
 
+## 📝 License
+Distributed under the **Apache License 2.0**.  
+See `LICENSE` for details.
 💡 *Developed for learning, built for clarity.*
 
 ```
