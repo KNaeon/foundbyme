@@ -1,0 +1,38 @@
+.header {
+  background-color: #3b82f6; /* bg-blue-500 */
+  color: white;
+  padding: 1rem; /* p-4 */
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1); /* shadow-md */
+}
+
+.container {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 1.25rem; /* text-xl */
+  font-weight: 700; /* font-bold */
+  text-decoration: none;
+  color: white;
+}
+
+.nav a {
+  margin-right: 1rem; /* mr-4 */
+  text-decoration: none;
+  color: white;
+  transition: color 0.2s;
+}
+
+.nav a:last-child {
+  margin-right: 0;
+}
+
+.nav a:hover {
+  color: #dbeafe; /* hover:text-blue-200 */
+}
