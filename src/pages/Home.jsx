@@ -43,39 +43,6 @@ const Home = () => {
             질문을 통해 해답을 찾아보세요.
           </p>
 
-          {/* 검색창 */}
-          <form
-            onSubmit={handleSearch}
-            className="relative w-full max-w-xl mx-auto group"
-          >
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative flex items-center bg-space-light/80 backdrop-blur-xl border border-slate-700 rounded-2xl p-2 focus-within:border-space-accent transition-colors">
-              <Search
-                className="ml-4 text-slate-400"
-                size={24}
-              />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) =>
-                  setQuery(e.target.value)
-                }
-                placeholder="무엇을 탐사하시겠습니까?"
-                className="w-full bg-transparent p-4 text-lg focus:outline-none text-space-text placeholder:text-slate-500"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={
-                  isLoading || !query.trim()
-                }
-                className="bg-space-accent hover:bg-purple-700 text-white p-3 rounded-xl transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Sparkles size={24} />
-              </button>
-            </div>
-          </form>
-
           {/* 파일 업로드 (Launch) 버튼 */}
           <div className="mt-12">
             <input
@@ -109,6 +76,39 @@ const Home = () => {
               지원
             </p>
           </div>
+
+          {/* 검색창 */}
+          <form
+            onSubmit={handleSearch}
+            className="relative w-full max-w-xl mx-auto group"
+          >
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative flex items-center bg-space-light/80 backdrop-blur-xl border border-slate-700 rounded-2xl p-2 focus-within:border-space-accent transition-colors">
+              <Search
+                className="ml-4 text-slate-400"
+                size={24}
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) =>
+                  setQuery(e.target.value)
+                }
+                placeholder="무엇을 탐사하시겠습니까?"
+                className="w-full bg-transparent p-4 text-lg focus:outline-none text-space-text placeholder:text-slate-500"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={
+                  isLoading || !query.trim()
+                }
+                className="bg-space-accent hover:bg-purple-700 text-white p-3 rounded-xl transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkles size={24} />
+              </button>
+            </div>
+          </form>
         </div>
       </main>
     </div>
