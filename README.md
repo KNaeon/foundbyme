@@ -29,7 +29,10 @@ Instead of keyword matching, it uses vector embeddings to retrieve text based on
 ## 📁 Project Structure
 
 
+---
 
+## 📚 Documentation
+Documentation (ReadTheDocs): https://foundbyme.readthedocs.io/
 
 ---
 
