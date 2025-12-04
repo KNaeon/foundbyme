@@ -4,10 +4,10 @@ version: 2
 build:
   os: ubuntu-24.04
   tools:
-    python: "3.10"   #(안정 버전)
+    python: "3.10"
 
 sphinx:
-  configuration: docs/source/conf.py   #실제 경로!
+  configuration: docs/source/conf.py
 
 python:
   install:
