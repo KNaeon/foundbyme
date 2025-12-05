@@ -1,0 +1,30 @@
+title: "FoundByMe"
+description: "A tool that helps you easily find and use study materials"
+theme: "just-the-docs"
+
+# Website base
+baseurl: "" 
+url: ""  
+
+# GitHub repo settings
+repository: KNaeon/foundbyme
+
+# Pretty URLs
+permalink: pretty
+
+# Enable search
+search_enabled: true
+
+# Edit this page link
+gh_edit_link: true
+gh_edit_repository: "https://github.com/KNaeon/foundbyme"
+gh_edit_branch: "main"
+gh_edit_view_mode: "edit"
+
+# Navigation configuration
+nav_enabled: true
+
+# Plugins (optional)
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
