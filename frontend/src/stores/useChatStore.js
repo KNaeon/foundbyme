@@ -14,15 +14,15 @@ const dummyHistory = [
   },
 ];
 
-const dummyResult = {
-  query: "React Hook의 장점은 무엇인가요?",
-  answer:
-    "React Hook은 클래스 컴포넌트 없이 상태 관리와 생명주기 기능을 사용할 수 있게 해줍니다. 이를 통해 코드가 간결해지고 재사용성이 높아지며, 컴포넌트 로직을 분리하여 테스트하기 쉬워집니다. 주요 장점으로는 가독성 향상, 코드 양 감소, 복잡한 컴포넌트 로직의 단순화 등이 있습니다.",
-  sources: [
-    "React_Docs_v18.pdf",
-    "Modern_Web_Dev_Lecture_03.pptx",
-  ],
-};
+// const dummyResult = {
+//   query: "React Hook의 장점은 무엇인가요?",
+//   answer:
+//     "React Hook은 클래스 컴포넌트 없이 상태 관리와 생명주기 기능을 사용할 수 있게 해줍니다. 이를 통해 코드가 간결해지고 재사용성이 높아지며, 컴포넌트 로직을 분리하여 테스트하기 쉬워집니다. 주요 장점으로는 가독성 향상, 코드 양 감소, 복잡한 컴포넌트 로직의 단순화 등이 있습니다.",
+//   sources: [
+//     "React_Docs_v18.pdf",
+//     "Modern_Web_Dev_Lecture_03.pptx",
+//   ],
+// };
 
 export const useChatStore = create((set) => ({
   history: dummyHistory,
@@ -55,31 +55,71 @@ export const useChatStore = create((set) => ({
 
   //추가!!!!여기까지
 
-  // 파일을 쏘아올리는 동작 모사
-  launchFiles: (files) => {
+  // 파일을 쏘아올리는 동작 (API 연결)
+  launchFiles: async (files) => {
     set({ isLoading: true });
-    setTimeout(() => {
-      alert(
-        `${files.length}개의 별(파일)을 성공적으로 쏘아 올렸습니다!`
+
+    const formData = new FormData();
+    // FileList를 배열로 변환하여 추가
+    Array.from(files).forEach((file) => {
+      formData.append("files", file);
+    });
+
+    try {
+      const response = await fetch(
+        "http://localhost:8040/api/upload",
+        {
+          method: "POST",
+          body: formData,
+        }
       );
+
+      if (response.ok) {
+        alert(
+          `${files.length}개의 별(파일)을 성공적으로 쏘아 올렸습니다!`
+        );
+      } else {
+        alert("파일 업로드 실패");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("서버 연결 오류");
+    } finally {
       set({ isLoading: false });
-    }, 1500);
+    }
   },
 
-  // 질문하기 동작 모사
-  askQuestion: (query) => {
+  // 질문하기 동작 (API 연결)
+  askQuestion: async (query) => {
     set({ isLoading: true });
-    // 실제로는 백엔드 요청. 여기선 더미 데이터 세팅 후 페이지 이동
-    setTimeout(() => {
+
+    try {
+      const response = await fetch(
+        "http://localhost:8040/api/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query }),
+        }
+      );
+
+      const data = await response.json();
+
       set({
         isLoading: false,
         currentResult: {
-          ...dummyResult,
           query: query,
+          answer: data.answer, // 서버에서 온 답변
+          sources: data.sources || [], // 서버에서 온 출처
         },
       });
-      // 페이지 이동은 컴포넌트에서 처리
-    }, 1000);
+    } catch (error) {
+      console.error(error);
+      set({ isLoading: false });
+      alert("답변을 받아오는데 실패했습니다.");
+    }
   },
 
   // --- 추가된 삭제 로직 ---
