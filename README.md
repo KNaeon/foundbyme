@@ -15,9 +15,10 @@ Instead of keyword matching, it uses vector embeddings to retrieve text based on
 ---
 
 ## 📚 Documentation
-- **Read the full guide:** [https://foundbyme.readthedocs.io/en/latest/](https://foundbyme.readthedocs.io/en/latest/)
-- **Build locally:**
-  ```bash
+- Read the full guide:[https://foundbyme.readthedocs.io/en/latest/](https://foundbyme.readthedocs.io/en/latest/)
+- Build locally:
+
+```bash
   cd docs
   pip install -r requirements.txt
   make html
