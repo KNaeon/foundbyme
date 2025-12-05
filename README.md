@@ -1,33 +1,32 @@
-````markdown
-# 🧠 Foundbyme
+# 🧠 FoundByMe
 
-Candidate1
-**Foundbyme** is an open-source project focused on *simplicity* and *educational accessibility*.  
+**FoundByMe** is an open-source, lightweight semantic search tool focused on *simplicity* and *educational accessibility*.  
 Instead of relying on keyword matching, it converts text into **vector embeddings** and retrieves documents based on **semantic meaning**.  
 It helps users quickly find relevant information across multiple files — no need to open every document manually.
 
-# The goal is simplicity: a lightweight, local-first tool that allows fast meaning-based search across your files.
-
-Candidate2
-**FoundByMe** is an open-source semantic search tool that helps users find meaningful information across multiple documents without manually opening each file.  
-Instead of keyword matching, it uses vector embeddings to retrieve text based on semantic similarity.
+> **Goal:** a local-first, fast meaning-based search across your files.
 
 ---
 
 ## 📚 Documentation
-- Read the full guide:[https://foundbyme.readthedocs.io/en/latest/](https://foundbyme.readthedocs.io/en/latest/)
+
+- Read the full guide: https://foundbyme.readthedocs.io/en/latest/
+
 - Build locally:
 
 ```bash
-  cd docs
-  pip install -r requirements.txt
-  make html
+cd docs
+pip install -r requirements.txt
+make html
 ```
 
 ## 🌐 Website
-Live site: https://knaeon.github.io/foundbyme/
-Source Code: The website source code is maintained in the gh-pages branch.(Jekyll/just-the-docs)
-Preview locally: You need to checkout the gh-pages branch to view the website source
+
+ - Live site: https://knaeon.github.io/foundbyme/
+
+ - Source Code: The website source code is maintained in the gh-pages branch.(Jekyll/just-the-docs)
+ 
+ - Preview locally: You need to checkout the gh-pages branch to view the website source
 
 ```bash
 git checkout gh-pages
