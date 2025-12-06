@@ -54,13 +54,16 @@ const Result = () => {
                   <div className="flex gap-2 flex-wrap">
                     {currentResult.sources.map(
                       (source, idx) => (
-                        <span
+                        <a
                           key={idx}
-                          className="flex items-center gap-1 text-xs bg-slate-800/50 text-slate-400 px-2 py-1 rounded-md border border-slate-700"
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs bg-slate-800/50 text-slate-400 px-2 py-1 rounded-md border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <FileText size={12} />{" "}
-                          {source}
-                        </span>
+                          {source.name}
+                        </a>
                       )
                     )}
                   </div>

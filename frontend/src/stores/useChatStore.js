@@ -67,7 +67,7 @@ export const useChatStore = create((set) => ({
 
     try {
       const response = await fetch(
-        "http://localhost:8040/api/upload",
+        "/api/upload",
         {
           method: "POST",
           body: formData,
@@ -94,16 +94,13 @@ export const useChatStore = create((set) => ({
     set({ isLoading: true });
 
     try {
-      const response = await fetch(
-        "http://localhost:8040/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ query }),
-        }
-      );
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
 
       const data = await response.json();
 
