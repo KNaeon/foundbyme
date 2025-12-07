@@ -1,8 +1,3 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-} from "react";
 import { useChatStore } from "../../stores/useChatStore";
 import {
   MessageSquare,
@@ -18,7 +13,7 @@ const Sidebar = () => {
     currentChatId,
     selectChat,
     createNewChat,
-    history,
+    deleteChat, // deleteChat 가져오기
   } = useChatStore();
 
   const handleDelete = (e, chatId) => {
@@ -93,22 +88,6 @@ const Sidebar = () => {
             </div>
           ))
         )}
-
-        <ul>
-          {history.map((item) => (
-            <li key={item.id} className="mb-1">
-              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-space-light/50 cursor-pointer transition-colors truncate">
-                <MessageSquare
-                  size={16}
-                  className="text-slate-400 shrink-0"
-                />
-                <span className="text-sm truncate">
-                  {item.query}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
       </div>
       <div className="text-xs text-slate-500 mt-4 text-center">
         User: Astronaut_01

@@ -1,18 +1,42 @@
-import React, { useState } from "react";
+import React, {
+  useState,
+  useEffect,
+} from "react";
 import Sidebar from "../components/layout/Sidebar";
 import {
   Search,
   UploadCloud,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import { useChatStore } from "../stores/useChatStore";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [query, setQuery] = useState("");
-  const { launchFiles, askQuestion, isLoading } =
-    useChatStore();
+  const {
+    launchFiles,
+    askQuestion,
+    isLoading,
+    documents,
+    currentChatId,
+    fetchDocuments,
+    createNewChat, // 추가
+  } = useChatStore();
   const navigate = useNavigate();
+
+  // 앱 진입 시 또는 채팅방이 없을 때 자동으로 새 채팅방 생성 (Gemini 스타일)
+  useEffect(() => {
+    if (!currentChatId) {
+      createNewChat();
+    } else {
+      fetchDocuments(currentChatId);
+    }
+  }, [
+    currentChatId,
+    createNewChat,
+    fetchDocuments,
+  ]);
 
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
@@ -109,6 +133,35 @@ const Home = () => {
               </button>
             </div>
           </form>
+
+          {/* 문서 목록 표시 (추가됨) */}
+          <div className="max-w-xl mx-auto mt-6">
+            <h3 className="text-slate-400 text-sm mb-2 text-left pl-2">
+              현재 탐사 중인 문서들:
+            </h3>
+            {documents.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700 text-sm text-slate-300"
+                  >
+                    <FileText
+                      size={14}
+                      className="text-blue-400"
+                    />
+                    <span className="truncate max-w-[150px]">
+                      {doc.filename}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-500 text-sm pl-2">
+                아직 업로드된 문서가 없습니다.
+              </p>
+            )}
+          </div>
         </div>
       </main>
     </div>

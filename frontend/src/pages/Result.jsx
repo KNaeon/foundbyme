@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import { useChatStore } from "../stores/useChatStore";
 import {
@@ -10,7 +10,22 @@ import {
 import { Link, Navigate } from "react-router-dom";
 
 const Result = () => {
-  const { currentResult } = useChatStore();
+  const {
+    currentResult,
+    documents,
+    currentChatId,
+    fetchDocuments,
+  } = useChatStore();
+
+  useEffect(() => {
+    if (currentChatId && documents.length === 0) {
+      fetchDocuments(currentChatId);
+    }
+  }, [
+    currentChatId,
+    documents.length,
+    fetchDocuments,
+  ]);
 
   // 결과가 없으면 홈으로 리다이렉트
   if (!currentResult) {
@@ -82,6 +97,35 @@ const Result = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* 문서 목록 표시 */}
+          <div className="max-w-2xl mx-auto w-full mt-8">
+            <h3 className="text-slate-400 text-sm mb-2 pl-2">
+              현재 탐사 중인 문서들:
+            </h3>
+            {documents.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700 text-sm text-slate-300"
+                  >
+                    <FileText
+                      size={14}
+                      className="text-blue-400"
+                    />
+                    <span className="truncate max-w-[150px]">
+                      {doc.filename}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-500 text-sm pl-2">
+                아직 업로드된 문서가 없습니다.
+              </p>
+            )}
           </div>
         </div>
       </main>

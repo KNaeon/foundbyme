@@ -10,7 +10,7 @@ import numpy as np
 DATA_DIR = "./data"
 MILVUS_HOST = "127.0.0.1"
 MILVUS_PORT = "19530"
-COLLECTION_NAME = "study_docs"
+COLLECTION_NAME = "study_docs_v2"
 ALLOWED_EXT=["pdf","doc","docx","ppt","pptx","txt","md","html"]
 
 # txtai 설정 (벡터 생성 엔진)
@@ -64,6 +64,7 @@ def setup_milvus_collection(embed_dim: int = 384):
         FieldSchema(name="path", dtype=DataType.VARCHAR, max_length=512),
         FieldSchema(name="filename", dtype=DataType.VARCHAR, max_length=256),
         FieldSchema(name="doc_type", dtype=DataType.VARCHAR, max_length=50),
+        FieldSchema(name="session_id", dtype=DataType.VARCHAR, max_length=100), # 채팅방 ID 추가
     ]
     
     schema = CollectionSchema(fields, description="txtai → milvus integration")
@@ -118,17 +119,17 @@ def extract_text(path: str) -> str:
     except Exception as e:
         print(f"[WARN] Failed to extract {path}: {e}")
         return ""
-
-def load_all_documents(root_dir: str):
-    print(f"\n[LOAD] Scanning {root_dir}...")
+def load_all_documents(root_dir: str, session_id: str = "default"):
+    print(f"\n[LOAD] Scanning {root_dir} for session '{session_id}'...")
 
     # 1) Milvus 컬렉션 Load 보장 (중복 방지 확실하게)
     col = Collection(COLLECTION_NAME)
     col.load()
 
     try:
+        # 해당 세션의 파일만 조회
         existing = col.query(
-            expr="id >= 0",
+            expr=f'session_id == "{session_id}"',
             output_fields=["filename", "path"]
         )
         existing_files = {(x["filename"], x["path"]) for x in existing}
@@ -140,7 +141,12 @@ def load_all_documents(root_dir: str):
     patterns=ALLOWED_EXT
 
     for pattern in patterns:
-        for file_path in glob.glob(os.path.join(root_dir, pattern), recursive=True):
+        # [수정] glob 패턴에 와일드카드(*.) 추가
+        search_pattern = os.path.join(root_dir, f"*.{pattern}")
+        # Windows에서는 대소문자 구분 없지만, 명시적으로 찾기 위해
+        files = glob.glob(search_pattern)
+        
+        for file_path in files:
             filename = os.path.basename(file_path)
 
             # 🔥 filename + path 모두 검증하여 중복 방지
@@ -156,7 +162,8 @@ def load_all_documents(root_dir: str):
                 "path": file_path,
                 "filename": filename,
                 "text": text,
-                "doc_type": os.path.splitext(filename)[1][1:]
+                "doc_type": os.path.splitext(filename)[1][1:],
+                "session_id": session_id
             })
 
             print(f"  [LOAD] NEW FILE → {filename} ({len(text)} chars)")
@@ -249,15 +256,15 @@ def vectorize_and_index_via_txtai(embeddings: Embeddings, collection: Collection
         # ✅ 벡터 길이 확인
         if len(vector) != EMBED_DIM:
             print(f"[WARN] Vector {i} has wrong dimension: {len(vector)} (expected {EMBED_DIM})")
-            continue
-        
         entity = {
             "vector": vector,
             "text": doc["text"][:65000],  # Milvus VARCHAR 제한
             "path": doc["path"],
             "filename": doc["filename"],
-            "doc_type": doc["doc_type"]
+            "doc_type": doc["doc_type"],
+            "session_id": doc.get("session_id", "default")
         }
+        
         entities.append(entity)
     
     if not entities:
@@ -296,22 +303,32 @@ def show_collection_stats(collection):
 # ============================================================
 def drop_milvus_collection_and_count():
     try:
+        # 1. Milvus 컬렉션 삭제
+        count = 0
         if COLLECTION_NAME in utility.list_collections():
-
             col = Collection(COLLECTION_NAME)
             count = col.num_entities  # 삭제 전 문서 수 확인
 
             utility.drop_collection(COLLECTION_NAME)
             print(f"🗑 Collection '{COLLECTION_NAME}' removed → {count} docs deleted")
-
-            setup_milvus_collection(embed_dim=EMBED_DIM)
-            print("📌 New empty collection initialized.")
-
-            return count  # ← 삭제된 문서 수 반환
-        
         else:
-            print("⚠ No collection found. Nothing deleted.")
-            return 0
+            print("⚠ No collection found in Milvus.")
+
+        # 2. 로컬 데이터 폴더 삭제 (./data)
+        import shutil
+        if os.path.exists(DATA_DIR):
+            # 폴더 내의 모든 파일/폴더 삭제 (DATA_DIR 자체는 유지하거나 재생성)
+            shutil.rmtree(DATA_DIR)
+            os.makedirs(DATA_DIR, exist_ok=True)
+            print(f"🗂 Local data directory '{DATA_DIR}' cleared.")
+        else:
+            os.makedirs(DATA_DIR, exist_ok=True)
+
+        # 3. 컬렉션 재생성
+        setup_milvus_collection(embed_dim=EMBED_DIM)
+        print("📌 New empty collection initialized.")
+
+        return count  # ← 삭제된 문서 수 반환
 
     except Exception as e:
         print(f"❌ Error during clear: {e}")
@@ -319,16 +336,16 @@ def drop_milvus_collection_and_count():
 
 # ============================================================
 # 🔥 파일명 기반 삭제 (문서개수/삭제된 ID 반환)
-# ============================================================
-def delete_document_by_filename(filename: str):
+def delete_document_by_filename(filename: str, session_id: str = "default"):
     try:
         col = Collection(COLLECTION_NAME)
         col.load()
 
-        # filename 일치하는 데이터 조회
-        matches = col.query(expr=f'filename == "{filename}"', output_fields=["id"])
+        # filename + session_id 일치하는 데이터 조회
+        expr = f'filename == "{filename}" && session_id == "{session_id}"'
+        matches = col.query(expr=expr, output_fields=["id"])
         if not matches:
-            print(f"⚠ No document found: {filename}")
+            print(f"⚠ No document found: {filename} in session {session_id}")
             return 0, []
 
         ids = [m["id"] for m in matches]
@@ -338,14 +355,59 @@ def delete_document_by_filename(filename: str):
         col.flush()
         print(f"🗑 Deleted {len(ids)} vectors from '{filename}'")
 
-        # 로컬 파일도 제거
-        local_path = f"./data/{filename}"
+        # 로컬 파일도 제거 (경로 주의: data/{session_id}/{filename})
+        local_path = f"./data/{session_id}/{filename}"
         if os.path.exists(local_path):
             os.remove(local_path)
             print(f"🗂 Local file removed: {local_path}")
 
         return len(ids), ids  # 삭제된 문서수 + ID 목록 반환
+        return len(ids), ids  # 삭제된 문서수 + ID 목록 반환
 
     except Exception as e:
         print(f"❌ Delete operation failed: {e}")
         return 0, []
+
+# ============================================================
+# 🔥 세션 기반 삭제 (채팅방 삭제 시 사용)
+def delete_session_data(session_id: str):
+    try:
+        col = Collection(COLLECTION_NAME)
+        col.load()
+
+        # 1. Milvus 데이터 삭제
+        expr = f'session_id == "{session_id}"'
+        
+        # 삭제 대상 확인 (최대 16384개까지 확인 가능)
+        matches = col.query(expr=expr, output_fields=["id"], limit=16384)
+        deleted_count = len(matches)
+
+        if deleted_count > 0:
+            # Expression을 이용한 일괄 삭제 (가장 확실한 방법)
+            col.delete(expr=expr)
+            col.flush()
+            print(f"🗑 Deleted approx {deleted_count} vectors for session '{session_id}'")
+            
+            # 혹시 남아있는지 확인 (Double Check)
+            remaining = col.query(expr=expr, output_fields=["id"], limit=10)
+            if remaining:
+                print(f"⚠️ Warning: Some vectors might still remain. Retrying with ID list...")
+                ids = [m["id"] for m in matches]
+                col.delete(expr=f'id in {ids}')
+                col.flush()
+
+        else:
+            print(f"⚠ No vectors found for session '{session_id}'")
+
+        # 2. 로컬 폴더 삭제
+        import shutil
+        session_dir = f"./data/{session_id}"
+        if os.path.exists(session_dir):
+            shutil.rmtree(session_dir) # 폴더 통째로 삭제
+            print(f"🗂 Local directory removed: {session_dir}")
+        
+        return deleted_count
+
+    except Exception as e:
+        print(f"❌ Session delete failed: {e}")
+        return 0

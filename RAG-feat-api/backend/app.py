@@ -1,8 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, Query
+from fastapi import FastAPI, UploadFile, File, Query, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from pymilvus import Collection, connections, utility
 from txtai.embeddings import Embeddings
 import numpy as np, os, shutil
@@ -37,16 +37,20 @@ print("✅ Ready → API Online\n")
 
 
 # =====================================
-
 # 파일 업로드 (/upload)
 # =====================================
 @app.post("/upload")
-def upload_file(files: List[UploadFile] = File(...)):
+def upload_file(
+    files: List[UploadFile] = File(...),
+    session_id: str = Form("default") # session_id 추가
+):
     
     saved_files = []
     errors = []
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    # 세션별 폴더 생성
+    session_dir = os.path.join(UPLOAD_DIR, session_id)
+    os.makedirs(session_dir, exist_ok=True)
 
     for file in files:
         ext = file.filename.split(".")[-1].lower()
@@ -54,7 +58,7 @@ def upload_file(files: List[UploadFile] = File(...)):
             errors.append(f"❌ {file.filename}: 지원하지 않는 파일 형식 ({ext})")
             continue
 
-        save_path = f"{UPLOAD_DIR}/{file.filename}"
+        save_path = f"{session_dir}/{file.filename}"
         with open(save_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
         
@@ -64,14 +68,16 @@ def upload_file(files: List[UploadFile] = File(...)):
         "status": "completed",
         "saved": saved_files,
         "errors": errors,
+        "session_id": session_id,
         "info": "📌 파일 저장완료 → /reindex 호출 시 인덱싱 수행"
     }
+
 # =====================================
 # 📂 파일 다운로드/열기 (추가됨)
 # =====================================
-@app.get("/files/{filename}")
-def get_file(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
+@app.get("/files/{session_id}/{filename}")
+def get_file(session_id: str, filename: str):
+    file_path = os.path.join(UPLOAD_DIR, session_id, filename)
     if os.path.exists(file_path):
         return FileResponse(file_path)
     return {"error": "File not found"}
@@ -81,11 +87,16 @@ def get_file(filename: str):
 # 인덱싱 (증분 방식)
 # =====================================
 @app.get("/reindex")
-def reindex():
+def reindex(session_id: str = "default"):
 
     global collection, embeddings  
 
-    documents = ms.load_all_documents("./data")
+    # 세션별 폴더 스캔
+    session_dir = os.path.join(UPLOAD_DIR, session_id)
+    if not os.path.exists(session_dir):
+        return {"status": "No documents found for this session"}
+
+    documents = ms.load_all_documents(session_dir, session_id)
     if not documents:
         return {"status": "No new documents"}
     
@@ -95,21 +106,10 @@ def reindex():
 
 
 # =====================================
-# 📂 파일 다운로드/열기 (추가됨)
-# =====================================
-@app.get("/files/{filename}")
-def get_file(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    return {"error": "File not found"}
-
-
-# =====================================
 # 🔍 검색
 # =====================================
 @app.get("/search")
-def search(q: str, top_k: int = 5):
+def search(q: str, session_id: str = "default", top_k: int = 5):
     global embeddings, collection
     
     try:
@@ -118,12 +118,16 @@ def search(q: str, top_k: int = 5):
         if isinstance(qvec, np.ndarray):
             qvec = qvec.tolist()
 
+        # session_id 필터링 추가
+        expr = f'session_id == "{session_id}"'
+
         results = collection.search(
             data=[qvec],
             anns_field="vector",
             param={"metric_type":"IP","params":{"nprobe":16}},
             limit=top_k,
-            output_fields=["filename","path","doc_type","text"]
+            expr=expr, # 필터 적용
+            output_fields=["filename","path","doc_type","text","session_id"]
         )
 
         if not results or len(results[0]) == 0:
@@ -133,14 +137,15 @@ def search(q: str, top_k: int = 5):
         for hit in results[0]:
             e = hit.entity
             filename = e.get("filename")
+            sid = e.get("session_id")
             out.append({
                 "score": float(hit.score),
                 "file":  filename,
                 "path":  e.get("path"),
                 "type":  e.get("doc_type"),
                 "preview": e.get("text")[:200].replace("\n"," "),
-                # [추가] 파일을 열 수 있는 URL 제공
-                "url": f"http://localhost:8000/files/{filename}" 
+                # [추가] 파일을 열 수 있는 URL 제공 (세션 ID 포함)
+                "url": f"http://localhost:8000/files/{sid}/{filename}" 
             })
         return {"results":out}
 
@@ -152,14 +157,17 @@ def search(q: str, top_k: int = 5):
 # 📄 문서 목록 조회
 # =====================================
 @app.get("/documents")
-def list_documents(limit: int = 100):
+def list_documents(session_id: str = "default", limit: int = 100):
 
     # Milvus 쿼리 limit 보호
     limit = min(limit, 16384)
 
+    # session_id 필터링
+    expr = f'session_id == "{session_id}"'
+
     # id, filename, doc_type, text 만 가져오기
     rows = collection.query(
-        expr="id >= 0",
+        expr=expr,
         output_fields=["id", "filename", "doc_type", "text"],
         limit=limit
     )
@@ -167,7 +175,7 @@ def list_documents(limit: int = 100):
     docs = []
     for r in rows:
         docs.append({
-            "id": r["id"],                              # Milvus PK
+            "id": str(r["id"]),                         # [수정] JS 정밀도 문제로 문자열 변환
             "filename": r["filename"],                  # 파일명
             "preview": r["text"][:20].replace("\n", " "),  # 20자 제한
             "type": r["doc_type"]                       # 확장자
@@ -210,7 +218,7 @@ def vectors(limit: int = 10, dim: int = 10):
     for r in rows:
         vec = r["vector"][:dim]    #  앞 dim개만 출력
         vectors.append({
-            "id": r["id"],
+            "id": str(r["id"]), # [수정] JS 정밀도 문제로 문자열 변환
             "filename": r["filename"],
             "vector_preview": vec,
             "vector_dimensions": len(r["vector"])
@@ -245,16 +253,29 @@ def delete_file(filename: str):
         "deleted_ids": ids
     }
 
+# ======================================================
+# ③ delete_session : 채팅방 삭제 (세션 데이터 전체 삭제)
+# ======================================================
+@app.delete("/session/{session_id}")
+def delete_session(session_id: str):
+    count = ms.delete_session_data(session_id)
+    return {
+        "status": "DELETED",
+        "session_id": session_id,
+        "deleted_vectors": count
+    }
+
 # =====================================
 # 💬 채팅 (RAG Mock)
-# =====================================
+# =====================================y
 class ChatRequest(BaseModel):
     query: str
+    session_id: str = "default" # 세션 ID 추가
 
 @app.post("/chat")
 def chat_endpoint(req: ChatRequest):
-    # 1. 검색 수행
-    search_results = search(req.query, top_k=3)
+    # 1. 검색 수행 (세션 ID 전달)
+    search_results = search(req.query, session_id=req.session_id, top_k=3)
     
     # 2. 검색 결과가 있는지 확인
     sources = []
@@ -268,9 +289,12 @@ def chat_endpoint(req: ChatRequest):
                 "url": res["url"],
                 "preview": res["preview"]
             })
-            context += res["preview"] + "\n"
+            context += f"- {res['preview']}\n"
     
-    answer = f"'{req.query}'에 대한 검색 결과입니다.\n\n관련 문서 내용:\n{context}\n(실제 LLM 연동이 필요합니다.)"
+    if not context:
+        answer = "관련된 문서를 찾을 수 없습니다. 문서를 업로드했는지 확인해주세요."
+    else:
+        answer = f"'{req.query}'에 대해 문서에서 찾은 내용은 다음과 같습니다:\n\n{context}\n\n(위 내용은 RAG 검색 결과에 기반합니다.)"
 
     return {
         "query": req.query,
