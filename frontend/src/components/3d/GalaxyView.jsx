@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import {
   Canvas,
-  // useFrame,
+  useFrame, // useFrame 추가
 } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -15,17 +15,34 @@ import {
   Html,
 } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
+import { useChatStore } from "../../stores/useChatStore"; // Store import
 
 // 개별 별(데이터 포인트) 컴포넌트
-const StarNode = ({ position, color, label }) => {
+const StarNode = ({
+  position,
+  color,
+  label,
+  isQuery,
+}) => {
   const ref = useRef();
   const [hovered, setHover] = useState(false);
+
+  // 쿼리 노드는 반짝이는 효과 추가
+  useFrame((state) => {
+    if (isQuery && ref.current) {
+      const scale =
+        1.5 +
+        Math.sin(state.clock.elapsedTime * 3) *
+          0.2;
+      ref.current.scale.set(scale, scale, scale);
+    }
+  });
 
   return (
     <mesh
       ref={ref}
       position={position}
-      scale={hovered ? 1.8 : 1}
+      scale={hovered ? 1.8 : isQuery ? 1.5 : 1}
       onPointerOver={(e) => {
         e.stopPropagation();
         setHover(true);
@@ -36,7 +53,9 @@ const StarNode = ({ position, color, label }) => {
       <meshStandardMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={hovered ? 2 : 0.5}
+        emissiveIntensity={
+          hovered || isQuery ? 2 : 0.5
+        }
         roughness={0.2}
       />
       {hovered && (
@@ -52,6 +71,8 @@ const StarNode = ({ position, color, label }) => {
 
 const GalaxyView = () => {
   const navigate = useNavigate();
+  const { currentChatId, currentResult } =
+    useChatStore(); // Store에서 데이터 가져오기
   const [dataPoints, setDataPoints] = useState(
     []
   );
@@ -59,12 +80,24 @@ const GalaxyView = () => {
   // 백엔드에서 실제 벡터 데이터 가져오기
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentChatId) return;
+
       try {
+        // 쿼리가 있으면 파라미터에 추가
+        const queryParam = currentResult?.query
+          ? `&query=${encodeURIComponent(
+              currentResult.query
+            )}`
+          : "";
+
         const response = await fetch(
-          "http://localhost:8000/api/galaxy"
+          `http://localhost:8000/api/galaxy?session_id=${currentChatId}${queryParam}`
         );
-        const data = await response.json();
-        setDataPoints(data);
+
+        if (response.ok) {
+          const data = await response.json();
+          setDataPoints(data);
+        }
       } catch (error) {
         console.error(
           "Failed to fetch galaxy data:",
@@ -73,7 +106,7 @@ const GalaxyView = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [currentChatId, currentResult]); // 의존성 배열 업데이트
 
   return (
     <div className="w-full h-screen bg-black relative">
@@ -130,6 +163,7 @@ const GalaxyView = () => {
               position={point.position}
               color={point.color}
               label={point.label}
+              isQuery={point.isQuery} // isQuery prop 전달
             />
           ))}
           {/* 중심점 가이드 */}

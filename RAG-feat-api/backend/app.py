@@ -302,5 +302,120 @@ def chat_endpoint(req: ChatRequest):
         "sources": sources # 중복 제거
     }
 
+# =====================================
+# 🌌 Galaxy View (3D 시각화)
+# =====================================
+@app.get("/api/galaxy")
+def galaxy_view(session_id: str = "default", query: Optional[str] = None):
+    global collection, embeddings
+    
+    try:
+        # 1. Milvus에서 해당 세션의 모든 벡터 가져오기
+        expr = f'session_id == "{session_id}"'
+        limit = 2000 # 시각화 최대 개수 제한
+        
+        results = collection.query(
+            expr=expr,
+            output_fields=["id", "filename", "doc_type", "vector"],
+            limit=limit
+        )
+        
+        if not results:
+            return []
+
+        # 2. 데이터 준비
+        vectors = []
+        metadata = []
+        
+        for res in results:
+            vectors.append(res["vector"])
+            metadata.append({
+                "id": str(res["id"]),
+                "label": res["filename"],
+                "type": res["doc_type"],
+                "isQuery": False
+            })
+            
+        # 3. 쿼리가 있다면 벡터화하여 추가
+        if query:
+            qvec = embeddings.transform(query)
+            if isinstance(qvec, np.ndarray):
+                qvec = qvec.tolist()
+            
+            vectors.append(qvec)
+            metadata.append({
+                "id": "query",
+                "label": f"Question: {query}",
+                "type": "query",
+                "isQuery": True
+            })
+
+        # 4. 차원 축소 (PCA: 384 -> 3)
+        X = np.array(vectors)
+        
+        # 데이터가 너무 적으면 랜덤/고정 위치 반환
+        if len(X) < 3:
+            points = []
+            for i, meta in enumerate(metadata):
+                points.append({
+                    "id": meta["id"],
+                    "position": [np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5)],
+                    "color": "#FDE047" if meta["isQuery"] else "#8B5CF6",
+                    "label": meta["label"]
+                })
+            return points
+
+        # PCA 수행
+        # 1) 중앙 정렬
+        X_centered = X - np.mean(X, axis=0)
+        
+        # 2) SVD (Singular Value Decomposition)
+        # U: (N, N), S: (K,), Vt: (K, D)
+        # X ~ U * S * Vt
+        # Reduced X = U[:, :3] * S[:3]
+        try:
+            U, S, Vt = np.linalg.svd(X_centered, full_matrices=False)
+            X_3d = U[:, :3] * S[:3]
+            
+            # 5. 좌표 정규화 (화면에 잘 보이도록 스케일링)
+            # -10 ~ 10 범위로 조정
+            max_val = np.max(np.abs(X_3d))
+            if max_val > 0:
+                X_3d = (X_3d / max_val) * 15 # 스케일 계수
+            
+        except Exception as e:
+            print(f"PCA Error: {e}")
+            return []
+
+        # 6. 결과 포맷팅
+        points = []
+        for i, coord in enumerate(X_3d):
+            meta = metadata[i]
+            
+            # 색상 결정
+            color = "#8B5CF6" # 기본 보라색
+            if meta["isQuery"]:
+                color = "#FDE047" # 쿼리는 노란색
+            elif meta["type"] in ["pdf"]:
+                color = "#F43F5E" # PDF는 붉은색
+            elif meta["type"] in ["txt", "md"]:
+                color = "#06B6D4" # 텍스트는 청록색
+            elif meta["type"] in ["pptx", "ppt"]:
+                color = "#F97316" # PPT는 주황색
+
+            points.append({
+                "id": meta["id"],
+                "position": coord.tolist(),
+                "color": color,
+                "label": meta["label"],
+                "isQuery": meta["isQuery"]
+            })
+            
+        return points
+
+    except Exception as e:
+        print(f"Galaxy View Error: {e}")
+        return []
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

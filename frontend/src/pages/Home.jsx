@@ -44,10 +44,10 @@ const Home = () => {
     }
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    askQuestion(query);
+    await askQuestion(query);
     navigate("/result"); // 결과 페이지로 이동
   };
 

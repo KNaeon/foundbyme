@@ -24,6 +24,14 @@ def check_data():
         return
 
     # 3. 전체 개수 확인
+    # 데이터 싱크를 맞추기 위해 flush 수행
+    collection.flush()
+    
+    # 🔥 정확한 개수 확인을 위해 강제 Compaction 수행 (삭제된 데이터 정리)
+    print("Wait for compaction... (삭제된 데이터 정리 중)")
+    collection.compact()
+    collection.wait_for_compaction_completed() # 완료될 때까지 대기
+
     total = collection.num_entities
     print(f"총 벡터 개수 (Total entities): {total}")
     
@@ -38,14 +46,22 @@ def check_data():
         results = collection.query(
             expr="id >= 0",
             output_fields=["session_id", "filename"],
-            limit=16384 
+            limit=16384,
+            consistency_level="Strong" # 최신 데이터 보장
         )
+        
+        if len(results) == 0 and total > 0:
+            print(f"⚠️ 주의: 총 개수는 {total}개인데 조회된 데이터가 없습니다.")
+            print("   (삭제된 데이터가 아직 완전히 정리되지 않았거나, 인덱싱 지연일 수 있습니다.)")
+            print("   Milvus Compaction을 수행하면 해결될 수 있습니다.")
         
         session_counts = Counter()
         session_files = {}
 
         for res in results:
             sid = res.get('session_id', 'Unknown')
+            if not sid: sid = "Empty String" # 빈 문자열 처리
+            
             fname = res.get('filename', 'Unknown')
             session_counts[sid] += 1
             
@@ -53,9 +69,9 @@ def check_data():
                 session_files[sid] = set()
             session_files[sid].add(fname)
 
-        if not session_counts:
-            print("데이터는 있지만 session_id를 찾을 수 없습니다.")
-        else:
+        if not session_counts and len(results) > 0:
+             print("데이터는 있지만 session_id 필드가 모두 비어있습니다.")
+        elif session_counts:
             print(f"{'Session ID':<40} | {'Count':<6} | {'Files'}")
             print("-" * 100)
             for sid, count in session_counts.items():

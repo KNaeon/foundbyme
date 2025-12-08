@@ -374,27 +374,38 @@ def delete_session_data(session_id: str):
     try:
         col = Collection(COLLECTION_NAME)
         col.load()
+        
+        # 데이터 일관성을 위해 플러시 수행
+        col.flush()
 
-        # 1. Milvus 데이터 삭제
+        # 1. Milvus 데이터 삭제 (ID 기반으로 확실하게 삭제)
         expr = f'session_id == "{session_id}"'
         
-        # 삭제 대상 확인 (최대 16384개까지 확인 가능)
-        matches = col.query(expr=expr, output_fields=["id"], limit=16384)
+        # 삭제 대상 ID 조회 (Strong Consistency로 최신 데이터 보장)
+        matches = col.query(expr=expr, output_fields=["id"], consistency_level="Strong", limit=16384)
         deleted_count = len(matches)
 
         if deleted_count > 0:
-            # Expression을 이용한 일괄 삭제 (가장 확실한 방법)
-            col.delete(expr=expr)
-            col.flush()
-            print(f"🗑 Deleted approx {deleted_count} vectors for session '{session_id}'")
+            ids = [m["id"] for m in matches]
             
-            # 혹시 남아있는지 확인 (Double Check)
-            remaining = col.query(expr=expr, output_fields=["id"], limit=10)
+            # ID 리스트를 이용한 삭제 (가장 정확함)
+            col.delete(expr=f'id in {ids}')
+            col.flush() # 삭제 즉시 반영
+            
+            print(f"🗑 Deleted {deleted_count} vectors for session '{session_id}' (IDs: {ids[:3]}...)")
+            
+            # 삭제 검증
+            remaining = col.query(expr=f'id in {ids}', output_fields=["id"], consistency_level="Strong")
             if remaining:
-                print(f"⚠️ Warning: Some vectors might still remain. Retrying with ID list...")
-                ids = [m["id"] for m in matches]
+                print(f"⚠️ Warning: {len(remaining)} vectors still exist. Retrying delete...")
                 col.delete(expr=f'id in {ids}')
                 col.flush()
+            
+            # 🔥 [추가] 사용자 경험을 위해 강제 Compaction 수행 (개수 즉시 반영)
+            # 주의: 데이터가 많을 경우 성능 저하가 있을 수 있으나, 정확한 개수 확인을 위해 추가함.
+            print("🧹 Compacting collection to update stats...")
+            col.compact()
+            # col.wait_for_compaction_completed() # 필요시 대기 (API 응답 시간 길어질 수 있음)
 
         else:
             print(f"⚠ No vectors found for session '{session_id}'")

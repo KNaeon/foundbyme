@@ -37,6 +37,16 @@ export const useChatStore = create(
         set({ currentResult: null });
         return;
       }
+
+      // 다른 채팅방을 클릭했을 때: 해당 채팅방으로 전환
+      set({
+        currentChatId: chatId,
+        currentResult: null, // 홈 화면으로 이동 (문서 목록 보기 위해)
+        documents: [], // 로딩 전 초기화 (깜빡임 방지)
+      });
+
+      // 문서 목록 새로고침
+      get().fetchDocuments(chatId);
     },
 
     // 문서 목록 가져오기
@@ -148,7 +158,7 @@ export const useChatStore = create(
         );
         console.log(response);
         const data = await response.json();
-
+        console.log(data);
         set({
           isLoading: false,
           currentResult: {
