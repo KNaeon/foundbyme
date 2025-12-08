@@ -1,0 +1,14 @@
+ for numerical stability
+    sqrt_scale = math.sqrt(scale_factor)
+    Q_scaled = Q * sqrt_scale
+    K_scaled = K_for_qk * sqrt_scale
+    return torch.matmul(Q_scaled, K_scaled.transpose(-2, -1))
+
+
+@_onnx_op("Attention", 23)
+def attention_23(
+    Q: torch.Tensor,
+    K: torch.Tensor,
+    V: torch.Tensor,
+    attn_mask: Optional[torch.Tensor] = None,
+    past_key: Optional[torch.Tensor]

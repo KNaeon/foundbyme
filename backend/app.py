@@ -1,14 +1,34 @@
 # app.py
-
-from fastapi import FastAPI
+import os
+import shutil
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
-from index import reload_embeddings, DB_PATH, COLLECTION_NAME
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-app = FastAPI()
+from db.db import get_db
+from db.models import Document
+from chroma_engine import ChromaEngine
+from loader import load_text
+from indexer import rebuild_index
 
+import numpy as np
+from sklearn.decomposition import PCA
+
+
+# ================================
+# 초기 세팅
+# ================================
+UPLOAD_DIR = "./data"
+ALLOWED_EXT = {"txt", "pdf", "md", "docx", "pptx"}
+
+app = FastAPI(title="FoundByMe API (Chroma + PostgreSQL)")
+
+# Global Chroma Engine
+chroma = ChromaEngine()
+
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,94 +36,147 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load DB + model
-chroma = chromadb.PersistentClient(path = DB_PATH)
-col = chroma.get_collection(COLLECTION_NAME)
-model = SentenceTransformer("all-MiniLM-L6-v2")
 
-
-# -----------------------------------------
-# /search
-# -----------------------------------------
+# ======================================================
+# 🔍 /search - 유사문서 top5 + PCA 3D
+# ======================================================
 @app.get("/search")
-def search(q: str, k: int = 5):
-    emb = model.encode([q]).tolist()
-    res = col.query(query_embeddings=emb, n_results=k)
+def search(q: str):
 
+    if not q:
+        raise HTTPException(status_code=400, detail="query required")
+
+    # Chroma 검색
+    result = chroma.search(q, top_k=5)
+
+    ids = result["ids"][0]
+    dists = result["distances"][0]
+    docs = result["documents"][0]      # content
+    metas = result["metadatas"][0]     # metadata
+
+    real_k = len(ids)
+
+    if real_k == 0:
+        return {
+            "query": q,
+            "query_vector_3d": [0, 0, 0],
+            "results": []
+        }
+
+    # Embedding 가져오기
+    doc_vecs = chroma.collection.get(ids=ids, include=["embeddings"])["embeddings"]
+    query_vec = chroma.embed([q])[0]
+    doc_vecs = np.array(doc_vecs, dtype=np.float32)
+    query_vec = np.array(query_vec, dtype=np.float32)
+
+    # PCA
+    # 정상 stack
+    X = np.vstack([query_vec, *doc_vecs])
+    print("stacked shape:", X.shape)
+    
+    pca = PCA(n_components=3)
+    X_3d = pca.fit_transform(X)
+    
+    query_3d = X_3d[0].tolist()
+    doc_3d = X_3d[1:]
+    
     results = []
-    for i in range(len(res["ids"][0])):
+    for i in range(real_k):
         results.append({
-            "id": res["ids"][0][i],
-            "score": float(res["distances"][0][i]),
-            "text": res["documents"][0][i],
-            "meta": res["metadatas"][0][i]
-        })
-    return {"results": results}
+            "id": ids[i],
+            "filename": metas[i].get("title"),
+            "ext": metas[i].get("ext"),
+            "page": metas[i].get("page", 1),
+            "score": float(dists[i]),
+            "vector_3d": doc_3d[i].tolist()
+        })  
+    
 
-
-# -----------------------------------------
-# /documents
-# -----------------------------------------
-@app.get("/documents")
-def documents(limit: int = 100):
-    res = col.get(include=["documents", "metadatas"])
-
-    docs = []
-    for i in range(min(limit, len(res["ids"]))):
-        docs.append({
-            "id": res["ids"][i],
-            "preview": res["documents"][i][:300],
-            "meta": res["metadatas"][i]
-        })
-
-    return {"documents": docs}
-
-
-# -----------------------------------------
-# /stats
-# -----------------------------------------
-@app.get("/stats")
-def stats():
-    res = col.get(include=["metadatas"])
-    total = len(res["ids"])
-
-    by_ext = {}
-    pdf_pages = 0
-
-    for m in res["metadatas"]:
-        ext = m["ext"]
-        by_ext[ext] = by_ext.get(ext, 0) + 1
-        if ext == "pdf":
-            pdf_pages += 1
 
     return {
-        "total_documents": total,
-        "by_extension": by_ext,
-        "total_pdf_pages": pdf_pages
+        "query": q,
+        #"query_ve" : query_vec
+        "query_vector_3d": query_3d,
+        "results": results
     }
 
 
-# -----------------------------------------
-# /vectors (샘플)
-# -----------------------------------------
-@app.get("/vectors")
-def vectors(limit: int = 100):
-    res = col.get(include=["embeddings"])
-
-    embeddings = res.get("embeddings")
-    if embeddings is None:
-        return {"error": "Embeddings are not stored in this collection."}
-
-    # numpy 배열 → 파이썬 리스트(list of list of float)로 변환
-    vectors = [list(map(float, emb)) for emb in embeddings[:limit]]
-
-    return {"vectors": vectors}
 
 
-# -----------------------------------------
-# /reload
-# -----------------------------------------
-@app.get("/reload")
-def reload():
-    count = reload_embeddings()
-    return {"status": "success", "indexed": count}
+
+# ======================================================
+# 📤 /upload - 파일 업로드만 수행
+# ======================================================
+@app.post("/upload")
+def upload_file(file: UploadFile = File(...)):
+    ext = file.filename.split(".")[-1].lower()
+
+    if ext not in ALLOWED_EXT:
+        return {"error": f"❌ 지원하지 않는 파일 형식: {ext}"}
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    save_path = f"{UPLOAD_DIR}/{file.filename}"
+
+    with open(save_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    return {
+        "status": "saved",
+        "file": file.filename,
+        "path": save_path,
+        "info": "📌 파일 저장완료 → /reindex 호출 시 인덱싱 수행"
+    }
+
+
+# ======================================================
+# 🔄 /reindex - 전체 재인덱싱
+# ======================================================
+@app.get("/reindex")
+def reindex():
+    rebuild_index()
+    global chroma
+    chroma = ChromaEngine()  # reload
+    return {"status": "Success"}
+
+
+# ======================================================
+# 📄 /documents - 문서 목록 조회
+# ======================================================
+@app.get("/documents")
+def list_documents(limit: int = 100):
+    limit = min(limit, 10000)
+
+    rows = chroma.collection.get(include=["metadatas", "documents"])
+    ids = rows["ids"]
+    metas = rows["metadatas"]
+    docs = rows["documents"]
+
+    result = []
+    for idx, meta, content in zip(ids, metas, docs):
+        result.append({
+            "id": idx,
+            "filename": meta.get("title", "unknown"),
+            "preview": (content[:20] if content else "").replace("\n", " "),
+            "type": meta.get("ext", "txt")
+        })
+
+    return {"count": len(result), "documents": result}
+
+
+# ======================================================
+# 📊 /stats - 확장자별 통계
+# ======================================================
+@app.get("/stats")
+def stats():
+    rows = chroma.collection.get(include=["metadatas"])
+    metas = rows["metadatas"]
+
+    stat = {}
+    for meta in metas:
+        ext = meta.get("ext", "txt")
+        stat[ext] = stat.get(ext, 0) + 1
+
+    return {
+        "total_docs": len(metas),
+        "by_extension": stat
+    }
