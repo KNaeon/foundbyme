@@ -5,13 +5,12 @@
   <img src="https://img.shields.io/badge/Python-3.8%2B-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white" alt="Node.js">
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/Database-PostgreSQL-316192?logo=postgresql&logoColor=white" alt="PostgreSQL">
 
   <br>
 
-  <img src="https://img.shields.io/badge/Powered%20by-FAISS-0085CA?style=flat&logo=meta&logoColor=white" alt="FAISS">
-  <img src="https://img.shields.io/badge/Vector%20DB-Milvus-00a1ea?style=flat&logo=zilliz&logoColor=white" alt="Milvus">
-  <img src="https://img.shields.io/badge/Embedding-Sentence--Transformers-orange?style=flat&logo=huggingface&logoColor=white" alt="SBERT">
-  <img src="https://img.shields.io/badge/Framework-txtai-7e56c2?style=flat" alt="txtai">
+  <img src="https://img.shields.io/badge/Powered%20by-txtai-7e56c2?style=flat&logo=python&logoColor=white" alt="txtai">
+  <img src="https://img.shields.io/badge/RAG-Semantic%20Search-FF6F61?style=flat" alt="RAG">
 
   <br>
 
