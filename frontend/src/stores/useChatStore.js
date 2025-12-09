@@ -164,8 +164,10 @@ export const useChatStore = create(
           currentResult: {
             query: query,
             answer: data.answer, // 서버에서 온 답변
-
             sources: data.sources || [], // 서버에서 온 출처
+            results: data.results || [], // 상세 결과 (벡터 포함)
+            query_vector_3d:
+              data.query_vector_3d || [0, 0, 0], // 쿼리 벡터
           },
         });
       } catch (error) {
@@ -187,7 +189,6 @@ export const useChatStore = create(
           "Failed to delete session data:",
           error
         );
-        // 서버 삭제 실패해도 프론트에서는 지워주는 게 UX상 좋을 수 있음
       }
 
       set((state) => {
@@ -206,6 +207,21 @@ export const useChatStore = create(
               : null;
         }
 
+        // 4. 채팅방이 하나도 없게 되면 자동으로 새 채팅방 생성
+        if (newChats.length === 0) {
+          const newChat = {
+            id: Date.now(),
+            title: `새로운 탐사 ${new Date().toLocaleTimeString()}`,
+            messages: [],
+          };
+          return {
+            chats: [newChat],
+            currentChatId: newChat.id,
+            documents: [],
+            currentResult: null,
+          };
+        }
+
         return {
           chats: newChats,
           currentChatId: newCurrentId,
@@ -219,6 +235,34 @@ export const useChatStore = create(
               ? null
               : state.currentResult,
         };
+      });
+    },
+
+    // --- 모든 채팅 삭제 로직 ---
+    deleteAllChats: async () => {
+      try {
+        await fetch("/api/sessions", {
+          method: "DELETE",
+        });
+      } catch (error) {
+        console.error(
+          "Failed to delete all sessions:",
+          error
+        );
+      }
+
+      // 모든 채팅 삭제 후 새 채팅 하나 생성
+      const newChat = {
+        id: Date.now(),
+        title: `새로운 탐사 ${new Date().toLocaleTimeString()}`,
+        messages: [],
+      };
+
+      set({
+        chats: [newChat],
+        currentChatId: newChat.id,
+        documents: [],
+        currentResult: null,
       });
     },
 

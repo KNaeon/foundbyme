@@ -37,9 +37,12 @@ def upsert_documents(db: Session, file_paths: List[str]) -> List[int]:
     chroma_metas = []
 
     for path in file_paths:
-        title, content = load_text(path)
-        if not content:
+        chunks = load_text(path)
+        if not chunks:
             continue
+
+        title = os.path.basename(path).rsplit(".", 1)[0]
+        full_content = "\n\n".join([c['content'] for c in chunks])
 
         # PostgreSQL upsert
         stmt = select(Document).where(Document.path == path)
@@ -47,11 +50,11 @@ def upsert_documents(db: Session, file_paths: List[str]) -> List[int]:
 
         if existing:
             existing.title = title
-            existing.content = content
+            existing.content = full_content
             db.flush()
             doc_id = existing.id
         else:
-            doc = Document(path=path, title=title, content=content)
+            doc = Document(path=path, title=title, content=full_content)
             db.add(doc)
             db.flush()
             doc_id = doc.id
@@ -62,7 +65,6 @@ def upsert_documents(db: Session, file_paths: List[str]) -> List[int]:
         ext = path.split(".")[-1].lower()
         
         # Extract session_id from path (assuming data/{session_id}/{filename})
-        # If file is in root data dir, session_id is "default"
         rel_path = os.path.relpath(path, DATA_DIR)
         parts = rel_path.split(os.sep)
         if len(parts) > 1:
@@ -70,14 +72,17 @@ def upsert_documents(db: Session, file_paths: List[str]) -> List[int]:
         else:
             session_id = "default"
 
-        chroma_ids.append(str(doc_id))
-        chroma_docs.append(content)
-        chroma_metas.append({
-            "title": title,
-            "ext": ext,
-            "path": path,
-            "session_id": session_id
-        })
+        for chunk in chunks:
+            # ID format: {doc_id}_{page}
+            chroma_ids.append(f"{doc_id}_{chunk['page']}")
+            chroma_docs.append(chunk['content'])
+            chroma_metas.append({
+                "title": title,
+                "ext": ext,
+                "path": path,
+                "session_id": session_id,
+                "page": chunk['page']
+            })
 
     db.commit()
 

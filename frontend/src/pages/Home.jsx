@@ -21,19 +21,26 @@ const Home = () => {
     documents,
     currentChatId,
     fetchDocuments,
-    createNewChat, // 추가
+    createNewChat,
+    chats, // chats 추가
   } = useChatStore();
   const navigate = useNavigate();
 
   // 앱 진입 시 또는 채팅방이 없을 때 자동으로 새 채팅방 생성 (Gemini 스타일)
   useEffect(() => {
-    if (!currentChatId) {
+    // 스토어의 최신 상태를 직접 확인하여 중복 생성 방지
+    const state = useChatStore.getState();
+    if (
+      !state.currentChatId &&
+      state.chats.length === 0
+    ) {
       createNewChat();
-    } else {
+    } else if (currentChatId) {
       fetchDocuments(currentChatId);
     }
   }, [
     currentChatId,
+    chats.length,
     createNewChat,
     fetchDocuments,
   ]);

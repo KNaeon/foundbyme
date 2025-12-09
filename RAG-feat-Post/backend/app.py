@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 
 from db.db import get_db
-from db.models import Document
+from db.models import Document, SearchLog
 from loader import load_text
 from indexer import rebuild_index, chroma
 
@@ -105,10 +105,10 @@ def search(q: str, session_id: str = "default"):
             "filename": metas[i].get("title"),
             "ext": metas[i].get("ext"),
             "page": metas[i].get("page", 1),
-            "score": float(dists[i]) if len(dists) > i else 0,
+            "score": float(dists[i]) if len(dists) > i else 0, 
             "vector_3d": doc_3d[i].tolist() if len(doc_3d) > i else [0,0,0],
             "preview": (docs[i][:200] if docs[i] else "").replace("\n", " "),
-            "url": f"http://localhost:8000/files/{session_id}/{metas[i].get('title')}"
+            "url": f"http://localhost:8000/files/{session_id}/{metas[i].get('title')}.{metas[i].get('ext')}"
         })  
     
     return {
@@ -121,8 +121,21 @@ def search(q: str, session_id: str = "default"):
 # 💬 /chat (RAG Mock)
 # =====================================
 @app.post("/chat")
-def chat_endpoint(req: ChatRequest):
+def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
     search_results = search(req.query, session_id=req.session_id)
+    
+    # Save query log
+    try:
+        log = SearchLog(
+            query=req.query, 
+            session_id=req.session_id, 
+            top_k=5, 
+            results_count=len(search_results.get("results", []))
+        )
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        print(f"Error saving search log: {e}")
     
     sources = []
     context = ""
@@ -135,17 +148,19 @@ def chat_endpoint(req: ChatRequest):
                 "preview": res.get("preview", ""),
                 "page": res.get("page", 1)
             })
-            context += f"- {res.get('preview', '')}\n"
+            context += f"- {res['filename']} (p.{res.get('page', 1)})\n"
     
     if not context:
         answer = "관련된 문서를 찾을 수 없습니다. 문서를 업로드했는지 확인해주세요."
     else:
-        answer = f"'{req.query}'에 대해 문서에서 찾은 내용은 다음과 같습니다:\n\n{context}\n\n(위 내용은 RAG 검색 결과에 기반합니다.)"
+        answer = f"'{req.query}'에 대해 다음 문서들을 찾았습니다:\n\n{context}"
 
     return {
         "query": req.query,
         "answer": answer,
-        "sources": sources
+        "sources": sources,
+        "results": search_results.get("results", []),
+        "query_vector_3d": search_results.get("query_vector_3d", [0,0,0])
     }
 
 
@@ -209,33 +224,28 @@ def reindex(session_id: str = "default"):
 # 📄 /documents - 문서 목록 조회
 # ======================================================
 @app.get("/documents")
-def list_documents(session_id: str = "default", limit: int = 100):
+def list_documents(session_id: str = "default", limit: int = 100, db: Session = Depends(get_db)):
     try:
-        limit = min(limit, 10000)
-
-        where_filter = {"session_id": session_id} if session_id != "default" else None
-
-        rows = chroma.collection.get(
-            where=where_filter,
-            include=["metadatas", "documents"],
-            limit=limit
+        # SQL DB에서 파일 목록 조회 (중복 없이 파일 단위로)
+        stmt = select(Document).where(
+            (Document.path.like(f"%/{session_id}/%")) | 
+            (Document.path.like(f"%\\{session_id}\\%"))
         )
-        ids = rows["ids"]
-        metas = rows["metadatas"]
-        docs = rows["documents"]
-
+        docs = db.execute(stmt).scalars().all()
+        
         result = []
-        for idx, meta, content in zip(ids, metas, docs):
+        for doc in docs:
+            ext = doc.path.split(".")[-1]
             result.append({
-                "id": idx,
-                "filename": meta.get("title", "unknown"),
-                "preview": (content[:20] if content else "").replace("\n", " "),
-                "type": meta.get("ext", "txt")
+                "id": str(doc.id),
+                "filename": f"{doc.title}.{ext}", # 확장자 포함
+                "preview": doc.content[:50] if doc.content else "",
+                "type": ext
             })
-
         return {"count": len(result), "documents": result}
     except Exception as e:
-        print(f"Error in /documents: {e}")
+        print(f"Error listing documents: {e}")
+        return {"documents": []}
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -263,7 +273,7 @@ def stats():
 # 🌌 /galaxy (3D 시각화)
 # =====================================
 @app.get("/galaxy")
-def galaxy_view(session_id: str = "default", query: Optional[str] = None):
+def galaxy_view(session_id: str = "default", query: Optional[str] = None, db: Session = Depends(get_db)):
     try:
         where_filter = {"session_id": session_id} if session_id != "default" else None
         
@@ -288,18 +298,45 @@ def galaxy_view(session_id: str = "default", query: Optional[str] = None):
                 "id": ids[i],
                 "label": metas[i].get("title", "unknown"),
                 "type": metas[i].get("ext", "txt"),
+                "page": metas[i].get("page", 1),
+                "filename": metas[i].get("title", "unknown"),
                 "isQuery": False
             })
             
-        if query:
-            qvec = chroma.embed([query])[0]
-            vectors.append(qvec)
-            metadata_list.append({
-                "id": "query",
-                "label": f"Question: {query}",
-                "type": "query",
-                "isQuery": True
-            })
+        # Fetch all queries for this session from DB
+        try:
+            logs = db.execute(select(SearchLog).where(SearchLog.session_id == session_id)).scalars().all()
+            queries = [log.query for log in logs]
+            
+            # Add current query if provided and not in logs
+            if query and query not in queries:
+                queries.append(query)
+            
+            # Deduplicate
+            unique_queries = list(set(queries))
+            
+            if unique_queries:
+                q_embeddings = chroma.embed(unique_queries)
+                for q_text, q_vec in zip(unique_queries, q_embeddings):
+                     vectors.append(q_vec)
+                     metadata_list.append({
+                        "id": f"query_{hash(q_text)}",
+                        "label": f"Question: {q_text}",
+                        "type": "query",
+                        "isQuery": True
+                    })
+        except Exception as e:
+            print(f"Error fetching queries: {e}")
+            # Fallback to just the current query if DB fails
+            if query:
+                qvec = chroma.embed([query])[0]
+                vectors.append(qvec)
+                metadata_list.append({
+                    "id": "query",
+                    "label": f"Question: {query}",
+                    "type": "query",
+                    "isQuery": True
+                })
 
         X = np.array(vectors)
         
@@ -311,6 +348,7 @@ def galaxy_view(session_id: str = "default", query: Optional[str] = None):
                     "position": [np.random.uniform(-5, 5), np.random.uniform(-5, 5), np.random.uniform(-5, 5)],
                     "color": "#FDE047" if meta["isQuery"] else "#8B5CF6",
                     "label": meta["label"],
+                    "page": meta.get("page", 1),
                     "isQuery": meta["isQuery"]
                 })
              return points
@@ -343,7 +381,9 @@ def galaxy_view(session_id: str = "default", query: Optional[str] = None):
                 "position": coord.tolist(),
                 "color": color,
                 "label": meta["label"],
-                "isQuery": meta["isQuery"]
+                "page": meta.get("page", 1),
+                "isQuery": meta["isQuery"],
+                "url": f"http://localhost:8000/files/{session_id}/{meta.get('filename')}.{meta.get('type')}#page={meta.get('page', 1)}" if not meta["isQuery"] else None
             })
             
         return points
@@ -357,38 +397,100 @@ def galaxy_view(session_id: str = "default", query: Optional[str] = None):
 # ======================================================
 @app.delete("/session/{session_id}")
 def delete_session(session_id: str, db: Session = Depends(get_db)):
-    # 1. 로컬 파일 삭제
-    session_dir = os.path.join(UPLOAD_DIR, session_id)
-    if os.path.exists(session_dir):
-        shutil.rmtree(session_dir)
+    print(f"Request to delete session: {session_id}")
     
+    # 1. SQL DB 삭제 (Python에서 경로 검사로 확실하게 처리)
+    try:
+        # 모든 문서 조회 (ID와 Path만)
+        docs = db.execute(select(Document.id, Document.path)).all()
+        ids_to_delete = []
+        
+        for doc_id, path in docs:
+            # 경로 정규화 (모든 구분자를 /로 변경)
+            norm_path = path.replace("\\", "/")
+            # session_id가 경로의 일부인지 확인 (예: data/session_id/file.pdf)
+            parts = norm_path.split("/")
+            if session_id in parts:
+                ids_to_delete.append(doc_id)
+        
+        if ids_to_delete:
+            db.execute(delete(Document).where(Document.id.in_(ids_to_delete)))
+            db.commit()
+            print(f"Deleted {len(ids_to_delete)} documents from SQL DB.")
+        else:
+            print("No documents found in SQL DB for this session.")
+            
+    except Exception as e:
+        print(f"Error deleting from SQL: {e}")
+        db.rollback()
+
     # 2. ChromaDB 삭제
     try:
         chroma.collection.delete(where={"session_id": session_id})
-    except:
-        pass
-
-    # 3. SQL DB 삭제 (path에 session_id가 포함된 문서 삭제)
-    # path format: ./data/{session_id}/{filename}
-    # Windows path separator issue might exist, so we use like query carefully
-    try:
-        # session_id가 경로에 포함된 모든 문서 삭제
-        # 예: %/session_id/% 또는 %\session_id\%
-        # 단순히 like(f"%{session_id}%")를 쓰면 부분 문자열 매칭 위험이 있음 (예: id=123이 1234를 삭제)
-        # 따라서 디렉토리 구분자를 포함하여 검색
-        stmt = delete(Document).where(
-            (Document.path.like(f"%/{session_id}/%")) | 
-            (Document.path.like(f"%\\{session_id}\\%"))
-        )
-        db.execute(stmt)
-        db.commit()
+        print(f"Deleted vectors for session {session_id} from ChromaDB.")
     except Exception as e:
-        print(f"Error deleting from SQL: {e}")
-        
+        print(f"Error deleting from ChromaDB: {e}")
+
+    # 3. 로컬 파일 삭제
+    session_dir = os.path.join(UPLOAD_DIR, session_id)
+    if os.path.exists(session_dir):
+        try:
+            shutil.rmtree(session_dir)
+            print(f"Deleted local directory: {session_dir}")
+        except Exception as e:
+            print(f"Error deleting local directory: {e}")
+            # Windows에서 파일이 사용 중일 경우 실패할 수 있음
+            return {"status": "PARTIAL_ERROR", "message": str(e)}
+    else:
+        print(f"Local directory not found: {session_dir}")
+
     return {
         "status": "DELETED",
         "session_id": session_id
     }
+
+# ======================================================
+# ④ delete_all_sessions : 모든 채팅방 삭제
+# ======================================================
+@app.delete("/sessions")
+def delete_all_sessions(db: Session = Depends(get_db)):
+    print("Request to delete ALL sessions")
+    
+    # 1. SQL DB 삭제 (모든 문서 및 로그 삭제)
+    try:
+        db.execute(delete(Document))
+        db.execute(delete(SearchLog))
+        db.commit()
+        print("Deleted all documents and logs from SQL DB.")
+    except Exception as e:
+        print(f"Error deleting all from SQL: {e}")
+        db.rollback()
+
+    # 2. ChromaDB 삭제 (전체 삭제)
+    try:
+        # 모든 데이터 삭제를 위해 get()으로 ID를 가져와서 삭제하거나 reset() 사용
+        # 여기서는 collection의 모든 데이터를 삭제
+        ids = chroma.collection.get()['ids']
+        if ids:
+            chroma.collection.delete(ids=ids)
+        print("Deleted all vectors from ChromaDB.")
+    except Exception as e:
+        print(f"Error deleting all from ChromaDB: {e}")
+
+    # 3. 로컬 파일 삭제 (data 폴더 내의 모든 하위 폴더/파일 삭제)
+    if os.path.exists(UPLOAD_DIR):
+        for item in os.listdir(UPLOAD_DIR):
+            item_path = os.path.join(UPLOAD_DIR, item)
+            try:
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
+            except Exception as e:
+                print(f"Error deleting {item}: {e}")
+        print("Deleted all local files.")
+
+    return {"status": "ALL_DELETED"}
 
 if __name__ == '__main__':
     import uvicorn

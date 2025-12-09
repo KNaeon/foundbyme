@@ -3,6 +3,7 @@ import {
   MessageSquare,
   Rocket,
   PlusCircle,
+  Trash2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 // import { deleteChat } from "../../stores/useChatStore";
@@ -14,6 +15,7 @@ const Sidebar = () => {
     selectChat,
     createNewChat,
     deleteChat, // deleteChat 가져오기
+    deleteAllChats,
   } = useChatStore();
 
   const handleDelete = (e, chatId) => {
@@ -88,6 +90,23 @@ const Sidebar = () => {
             </div>
           ))
         )}
+      </div>
+      <div className="mt-4 pt-4 border-t border-space-light">
+        <button
+          onClick={() => {
+            if (
+              window.confirm(
+                "모든 탐사 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+              )
+            ) {
+              deleteAllChats();
+            }
+          }}
+          className="flex items-center gap-2 w-full p-2 text-sm text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
+        >
+          <Trash2 size={16} />
+          <span>모든 기록 삭제</span>
+        </button>
       </div>
       <div className="text-xs text-slate-500 mt-4 text-center">
         User: Astronaut_01

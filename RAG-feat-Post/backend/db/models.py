@@ -18,6 +18,7 @@ class SearchLog(Base):
     __tablename__ = "search_logs"
 
     id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(255), index=True, default="default")
     query = Column(Text, nullable=False)
     top_k = Column(Integer, nullable=False)
     results_count = Column(Integer, nullable=False)

@@ -1,5 +1,5 @@
 import React from "react";
-import GalaxyView from "../components/3D/GalaxyView";
+import GalaxyView from "../components/3d/GalaxyView";
 
 const Visualized = () => {
   return (

@@ -59,28 +59,60 @@ const Result = () => {
                 size={32}
               />
               <div className="space-y-4 flex-1">
+                {/* Best Match Section */}
+                {currentResult.results &&
+                  currentResult.results.length >
+                    0 && (
+                    <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 mb-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
+                          Best Match
+                        </span>
+                        <a
+                          href={`${currentResult.results[0].url}#page=${currentResult.results[0].page}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs bg-purple-600 hover:bg-purple-500 text-white px-2 py-0.5 rounded transition-colors flex items-center gap-1"
+                        >
+                          <span>
+                            Open p.
+                            {
+                              currentResult
+                                .results[0].page
+                            }
+                          </span>
+                        </a>
+                      </div>
+                      <p className="text-sm text-slate-200 font-medium truncate">
+                        {
+                          currentResult.results[0]
+                            .filename
+                        }
+                      </p>
+                    </div>
+                  )}
                 <p className="text-lg leading-relaxed text-slate-200">
                   {currentResult.answer}
-                </p>
-
+                </p>{" "}
                 {/* 하단 액션 버튼들 */}
                 <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
                   {/* 참조 소스 */}
                   <div className="flex gap-2 flex-wrap">
-                    {currentResult.sources.map(
-                      (source, idx) => (
+                    {currentResult.sources
+                      .slice(0, 5)
+                      .map((source, idx) => (
                         <a
                           key={idx}
-                          href={source.url}
+                          href={`${source.url}#page=${source.page}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 text-xs bg-slate-800/50 text-slate-400 px-2 py-1 rounded-md border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <FileText size={12} />{" "}
-                          {source.name} (p.{source.page})
+                          {source.name} (p.
+                          {source.page})
                         </a>
-                      )
-                    )}
+                      ))}
                   </div>
 
                   {/* 3D 시각화 이동 버튼 */}

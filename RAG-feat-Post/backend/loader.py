@@ -8,50 +8,50 @@ from pptx import Presentation
 import markdown
 
 
-def load_text(path: str) -> Tuple[str, str]:
+def load_text(path: str) -> list[dict]:
     """
-    파일 경로 → (title, content)
+    파일 경로 → [{'page': 1, 'content': '...'}, ...]
     """
     ext = os.path.splitext(path)[1].lstrip(".").lower()
-    title = os.path.basename(path).rsplit(".", 1)[0]
+    results = []
 
     if ext == "txt":
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
+        results.append({"page": 1, "content": content})
 
     elif ext == "pdf":
         try:
             with pdfplumber.open(path) as pdf:
-                texts = []
-                for page in pdf.pages:
-                    texts.append(page.extract_text() or "")
-                content = "\n".join(texts)
+                for i, page in enumerate(pdf.pages):
+                    text = page.extract_text() or ""
+                    if text.strip():
+                        results.append({"page": i + 1, "content": text})
         except Exception as e:
             print(f"Error reading PDF {path}: {e}")
-            content = ""
 
     elif ext == "docx":
         doc = DocxDocument(path)
+        # DOCX는 페이지 개념이 명확하지 않으므로 전체를 1페이지로 취급하거나 단락별로 나눌 수 있음
+        # 여기서는 전체를 1페이지로 처리
         content = "\n".join(p.text for p in doc.paragraphs)
+        results.append({"page": 1, "content": content})
 
     elif ext == "pptx":
         pres = Presentation(path)
-        texts = []
-        for slide in pres.slides:
+        for i, slide in enumerate(pres.slides):
+            texts = []
             for shape in slide.shapes:
                 if hasattr(shape, "text"):
                     texts.append(shape.text)
-        content = "\n".join(texts)
+            content = "\n".join(texts)
+            if content.strip():
+                results.append({"page": i + 1, "content": content})
 
     elif ext == "md":
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             md_text = f.read()
-        html = markdown.markdown(md_text)
-        import re
-        content = re.sub("<[^<]+?>", "", html)
-
-    else:
-        content = ""
-
-    content = content.strip()
-    return title, content
+        # Markdown도 1페이지로 처리
+        results.append({"page": 1, "content": md_text})
+    
+    return results
