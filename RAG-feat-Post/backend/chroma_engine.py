@@ -20,7 +20,7 @@ class ChromaEngine:
         )
 
         model_name = os.getenv(
-            "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+            "EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
         )
         print(f"[CHROMA] Loading embedding model: {model_name}")
         self.model = SentenceTransformer(model_name)

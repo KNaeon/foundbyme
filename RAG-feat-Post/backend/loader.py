@@ -6,7 +6,30 @@ import pdfplumber
 from docx import Document as DocxDocument
 from pptx import Presentation
 import markdown
+import pytesseract
+from PIL import Image
 
+# Windows 환경에서 Tesseract 경로 설정 (필요시 주석 해제 및 경로 수정)
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
+    if not text:
+        return []
+    
+    # 너무 짧은 텍스트(예: 목차, 빈 페이지)는 무시
+    if len(text.strip()) < 50:
+        return []
+
+    chunks = []
+    start = 0
+    text_len = len(text)
+    
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        chunks.append(text[start:end])
+        start += (chunk_size - overlap)
+        
+    return chunks
 
 def load_text(path: str) -> list[dict]:
     """
@@ -18,7 +41,10 @@ def load_text(path: str) -> list[dict]:
     if ext == "txt":
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-        results.append({"page": 1, "content": content})
+        
+        chunks = chunk_text(content)
+        for i, chunk in enumerate(chunks):
+            results.append({"page": i + 1, "content": chunk})
 
     elif ext == "pdf":
         try:
@@ -26,16 +52,18 @@ def load_text(path: str) -> list[dict]:
                 for i, page in enumerate(pdf.pages):
                     text = page.extract_text() or ""
                     if text.strip():
+                        # PDF 페이지도 너무 길면 자를 수 있음 (선택 사항)
                         results.append({"page": i + 1, "content": text})
         except Exception as e:
             print(f"Error reading PDF {path}: {e}")
 
     elif ext == "docx":
         doc = DocxDocument(path)
-        # DOCX는 페이지 개념이 명확하지 않으므로 전체를 1페이지로 취급하거나 단락별로 나눌 수 있음
-        # 여기서는 전체를 1페이지로 처리
         content = "\n".join(p.text for p in doc.paragraphs)
-        results.append({"page": 1, "content": content})
+        
+        chunks = chunk_text(content)
+        for i, chunk in enumerate(chunks):
+            results.append({"page": i + 1, "content": chunk})
 
     elif ext == "pptx":
         pres = Presentation(path)
@@ -51,7 +79,21 @@ def load_text(path: str) -> list[dict]:
     elif ext == "md":
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             md_text = f.read()
-        # Markdown도 1페이지로 처리
-        results.append({"page": 1, "content": md_text})
+        
+        chunks = chunk_text(md_text)
+        for i, chunk in enumerate(chunks):
+            results.append({"page": i + 1, "content": chunk})
+
+    elif ext in ["jpg", "jpeg", "png", "bmp", "tiff"]:
+        try:
+            image = Image.open(path)
+            # 한국어+영어 추출
+            text = pytesseract.image_to_string(image, lang='kor+eng')
+            if text.strip():
+                chunks = chunk_text(text)
+                for i, chunk in enumerate(chunks):
+                    results.append({"page": 1, "content": chunk})
+        except Exception as e:
+            print(f"Error reading Image {path}: {e}")
     
     return results

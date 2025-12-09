@@ -5,3 +5,8 @@ python-docx
 beautifulsoup4
 fastapi
 uvicorn
+python-multipart
+pytesseract
+Pillow
+python-pptx
+psycopg2-binary

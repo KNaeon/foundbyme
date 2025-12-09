@@ -50,6 +50,27 @@ services:
     networks:
       - oss_net
 
+  backend:
+    build: .
+    container_name: oss_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - USE_POSTGRES=true
+      - POSTGRES_HOST=db
+      - POSTGRES_USER=${POSTGRES_USER:-ossuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-osspass}
+      - POSTGRES_DB=${POSTGRES_DB:-ossdb}
+      - CHROMA_PERSIST_DIR=/app/chroma_store
+    volumes:
+      - ./data:/app/data
+      - ./chroma_store:/app/chroma_store
+    depends_on:
+      - db
+    networks:
+      - oss_net
+
 volumes:
   pgdata:
 

@@ -13,6 +13,7 @@ import {
   OrbitControls,
   Stars,
   Html,
+  Line,
 } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
 import { useChatStore } from "../../stores/useChatStore"; // Store import
@@ -33,7 +34,7 @@ const StarNode = ({
   useFrame((state) => {
     if (isQuery && ref.current) {
       const scale =
-        1.5 +
+        1 +
         Math.sin(state.clock.elapsedTime * 3) *
           0.2;
       ref.current.scale.set(scale, scale, scale);
@@ -77,17 +78,17 @@ const StarNode = ({
       />
       {hovered && (
         <Html distanceFactor={10}>
-          <div className="bg-slate-900/90 text-xs text-white p-2 rounded border border-slate-500 whitespace-nowrap pointer-events-none z-50">
-            <div className="font-bold mb-1">
+          <div className="bg-slate-900/90 text-base text-white p-4 rounded-lg border border-slate-500 whitespace-nowrap pointer-events-none z-50 min-w-[200px]">
+            <div className="font-bold mb-2 text-lg">
               {label}
             </div>
             {!isQuery && page && (
-              <div className="text-slate-300">
+              <div className="text-slate-300 mb-1">
                 Page: {page}
               </div>
             )}
             {url && (
-              <div className="text-[10px] text-slate-400 mt-1">
+              <div className="text-xs text-slate-400 mt-2">
                 (Click to open)
               </div>
             )}
@@ -201,7 +202,7 @@ const GalaxyView = () => {
           factor={4}
           saturation={0}
           fade
-          speed={1}
+          speed={0}
         />
 
         {/* 실제 데이터 렌더링 */}
@@ -217,7 +218,36 @@ const GalaxyView = () => {
               page={point.page}
             />
           ))}
-          {/* 중심점 가이드 */}
+
+          {/* 질문 벡터와 중심점 연결선 */}
+          {dataPoints.map((point) => {
+            if (point.isQuery) {
+              return (
+                <Line
+                  key={`line-${point.id}`}
+                  points={[
+                    [0, 0, 0],
+                    point.position,
+                  ]}
+                  color="white"
+                  vertexColors={[
+                    "white",
+                    "#FDE047",
+                  ]}
+                  lineWidth={1.5}
+                  dashed={true}
+                  dashScale={2}
+                  dashSize={0.5}
+                  gapSize={0.5}
+                  opacity={0.6}
+                  transparent
+                />
+              );
+            }
+            return null;
+          })}
+
+          {/* 중심점 가이드 (투명한 구) */}
           <mesh position={[0, 0, 0]}>
             <sphereGeometry
               args={[0.2, 16, 16]}
@@ -225,7 +255,7 @@ const GalaxyView = () => {
             <meshBasicMaterial
               color="white"
               transparent
-              opacity={0.1}
+              opacity={0.3}
               wireframe
             />
           </mesh>

@@ -16,19 +16,23 @@ from indexer import rebuild_index, chroma
 
 import numpy as np
 from sklearn.decomposition import PCA
-
+from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import CrossEncoder
 
 # ================================
 # 초기 세팅
 # ================================
 UPLOAD_DIR = "./data"
-ALLOWED_EXT = {"txt", "pdf", "md", "docx", "pptx"}
+ALLOWED_EXT = {"txt", "pdf", "md", "docx", "pptx", "jpg", "jpeg", "png", "bmp", "tiff"}
 
 app = FastAPI(title="FoundByMe API (Chroma + PostgreSQL)")
 
-# Global Chroma Engine
-# chroma = ChromaEngine() # Removed to use shared instance from indexer
-
+# 🚀 Re-ranker 모델 로드 (정확도 향상용)
+# Cross-Encoder는 속도는 느리지만 정확도가 매우 높음
+print("[APP] Loading Re-ranker model...")
+# 다국어 지원 모델 사용 (BAAI/bge-reranker-v2-m3: 성능이 우수한 다국어 리랭커)
+reranker = CrossEncoder("BAAI/bge-reranker-v2-m3")
+print("[APP] Re-ranker loaded.")
 
 # CORS
 app.add_middleware(
@@ -54,18 +58,19 @@ def search(q: str, session_id: str = "default"):
     # session_id 필터 적용
     where_filter = {"session_id": session_id} if session_id != "default" else None
     
+    # 1. 1차 검색 (Vector Search) - 후보군을 넉넉하게(15~20개) 가져옴
     q_emb = chroma.embed([q])[0]
+    candidate_k = 15
     result = chroma.collection.query(
         query_embeddings=[q_emb],
-        n_results=5,
+        n_results=candidate_k,
         where=where_filter
     )
 
     ids = result["ids"][0]
-    dists = result["distances"][0] if result["distances"] else []
     docs = result["documents"][0] if result["documents"] else []
     metas = result["metadatas"][0] if result["metadatas"] else []
-
+    
     real_k = len(ids)
 
     if real_k == 0:
@@ -75,8 +80,34 @@ def search(q: str, session_id: str = "default"):
             "results": []
         }
 
+    # 2. 2차 검색 (Re-ranking) - CrossEncoder로 정확도 순 정렬
+    # (질문, 문서내용) 쌍을 만들어 점수 계산
+    pairs = [[q, doc_text] for doc_text in docs]
+    scores = reranker.predict(pairs)
+
+    # 점수와 인덱스를 묶어서 정렬 (점수 높은 순)
+    scored_results = []
+    for i in range(real_k):
+        scored_results.append({
+            "index": i,
+            "score": float(scores[i]),
+            "id": ids[i],
+            "doc": docs[i],
+            "meta": metas[i]
+        })
+    
+    # 점수 내림차순 정렬
+    scored_results.sort(key=lambda x: x["score"], reverse=True)
+
+    # 상위 5개만 선택
+    top_k = 5
+    final_results = scored_results[:top_k]
+    
+    # 3D 시각화를 위해 선택된 문서들의 Vector만 다시 가져오기 (최적화)
+    final_ids = [res["id"] for res in final_results]
+    
     # Embedding 가져오기
-    doc_vecs = chroma.collection.get(ids=ids, include=["embeddings"])["embeddings"]
+    doc_vecs = chroma.collection.get(ids=final_ids, include=["embeddings"])["embeddings"]
     query_vec = np.array(q_emb, dtype=np.float32)
     doc_vecs = np.array(doc_vecs, dtype=np.float32)
 
@@ -99,17 +130,19 @@ def search(q: str, session_id: str = "default"):
         doc_3d = X_3d[1:]
     
     results = []
-    for i in range(real_k):
+    for i, res in enumerate(final_results):
+        meta = res["meta"]
         results.append({
-            "id": ids[i],
-            "filename": metas[i].get("title"),
-            "ext": metas[i].get("ext"),
-            "page": metas[i].get("page", 1),
-            "score": float(dists[i]) if len(dists) > i else 0, 
+            "id": res["id"],
+            "filename": meta.get("title"),
+            "ext": meta.get("ext"),
+            "page": meta.get("page", 1),
+            "score": res["score"], 
             "vector_3d": doc_3d[i].tolist() if len(doc_3d) > i else [0,0,0],
-            "preview": (docs[i][:200] if docs[i] else "").replace("\n", " "),
-            "url": f"http://localhost:8000/files/{session_id}/{metas[i].get('title')}.{metas[i].get('ext')}"
-        })  
+            "preview": (res["doc"][:200] if res["doc"] else "").replace("\n", " "),
+            "url": f"http://localhost:8000/files/{session_id}/{meta.get('title')}.{meta.get('ext')}"
+        }) 
+        
     
     return {
         "query": q,
@@ -126,6 +159,9 @@ def chat_endpoint(req: ChatRequest, db: Session = Depends(get_db)):
     
     # Save query log
     try:
+        # 이전 질문 기록 삭제 (한 번에 하나의 질문만 유지)
+        db.execute(delete(SearchLog).where(SearchLog.session_id == req.session_id))
+        
         log = SearchLog(
             query=req.query, 
             session_id=req.session_id, 
@@ -353,15 +389,18 @@ def galaxy_view(session_id: str = "default", query: Optional[str] = None, db: Se
                 })
              return points
 
-        X_centered = X - np.mean(X, axis=0)
-        
+        # 1. PCA 수행 (전체 데이터의 구조 파악)
         pca = PCA(n_components=3)
-        X_3d = pca.fit_transform(X_centered)
+        X_3d = pca.fit_transform(X)
         
+        # 중심점 맞추기 (평균을 0으로)
+        X_3d = X_3d - np.mean(X_3d, axis=0)
+        
+        # 스케일링 (화면에 꽉 차게)
         max_val = np.max(np.abs(X_3d))
         if max_val > 0:
-            X_3d = (X_3d / max_val) * 15
-            
+            X_3d = (X_3d / max_val) * 60
+
         points = []
         for i, coord in enumerate(X_3d):
             meta = metadata_list[i]

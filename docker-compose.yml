@@ -1,0 +1,108 @@
+version: "3.10"
+
+services:
+  # =========================================
+  # Frontend (React + Nginx)
+  # =========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: oss_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - oss_net
+
+  # =========================================
+  # Backend (FastAPI + Chroma + Tesseract)
+  # =========================================
+  backend:
+    build:
+      context: ./RAG-feat-Post/backend
+      dockerfile: Dockerfile
+    container_name: oss_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - USE_POSTGRES=true
+      - POSTGRES_HOST=db
+      - POSTGRES_USER=${POSTGRES_USER:-ossuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-osspass}
+      - POSTGRES_DB=${POSTGRES_DB:-ossdb}
+      - CHROMA_PERSIST_DIR=/app/chroma_store
+    volumes:
+      - ./RAG-feat-Post/backend/data:/app/data
+      - ./RAG-feat-Post/backend/chroma_store:/app/chroma_store
+    depends_on:
+      - db
+    networks:
+      - oss_net
+
+  # =========================================
+  # Database (PostgreSQL)
+  # =========================================
+  db:
+    image: postgres:16
+    container_name: oss_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ossuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-osspass}
+      POSTGRES_DB: ${POSTGRES_DB:-ossdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - oss_net
+
+  # =========================================
+  # DB Admin (pgAdmin)
+  # =========================================
+  pgadmin:
+    image: dpage/pgadmin4:8.12
+    container_name: oss_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - oss_net
+
+  # =========================================
+  # Visualization (Superset)
+  # =========================================
+  superset:
+    image: apache/superset:latest
+    container_name: oss_superset
+    restart: unless-stopped
+    environment:
+      SUPERSET_SECRET_KEY: "supersecretkey"
+      SUPERSET_LOAD_EXAMPLES: "no"
+      SUPERSET_ADMIN_USERNAME: "admin"
+      SUPERSET_ADMIN_PASSWORD: "admin"
+      SUPERSET_ADMIN_FIRSTNAME: "OSS"
+      SUPERSET_ADMIN_LASTNAME: "Admin"
+      SUPERSET_ADMIN_EMAIL: "admin@example.com"
+    ports:
+      - "8088:8088"
+    depends_on:
+      - db
+    networks:
+      - oss_net
+
+volumes:
+  pgdata:
+
+networks:
+  oss_net:
+    driver: bridge
