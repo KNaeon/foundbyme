@@ -23,7 +23,7 @@ app.add_middleware(
 UPLOAD_DIR= ms.DATA_DIR
 ALLOWED_EXT=ms.ALLOWED_EXT
 
-# =====================================
+# ===================================== 
 # txtai 모델 · Milvus 연결 초기화
 # =====================================
 print("\n🚀 Loading txtai model & connecting Milvus...")
