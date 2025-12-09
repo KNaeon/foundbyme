@@ -91,7 +91,7 @@ const GalaxyView = () => {
           : "";
 
         const response = await fetch(
-          `http://localhost:8000/api/galaxy?session_id=${currentChatId}${queryParam}`
+          `/api/galaxy?session_id=${currentChatId}${queryParam}`
         );
 
         if (response.ok) {

@@ -77,7 +77,7 @@ const Result = () => {
                           className="flex items-center gap-1 text-xs bg-slate-800/50 text-slate-400 px-2 py-1 rounded-md border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors"
                         >
                           <FileText size={12} />{" "}
-                          {source.name}
+                          {source.name} (p.{source.page})
                         </a>
                       )
                     )}
