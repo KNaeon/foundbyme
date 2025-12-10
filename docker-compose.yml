@@ -22,7 +22,7 @@ services:
   # =========================================
   backend:
     build:
-      context: ./RAG-feat-Post/backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: oss_backend
     restart: unless-stopped
