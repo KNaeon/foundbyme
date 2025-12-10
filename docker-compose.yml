@@ -82,9 +82,25 @@ services:
   # Visualization (Superset)
   # =========================================
   superset:
-    image: apache/superset:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile_superset
     container_name: oss_superset
     restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        superset db upgrade &&
+        superset fab create-admin \
+          --username admin \
+          --firstname OSS \
+          --lastname Admin \
+          --email admin@example.com \
+          --password admin ||
+        true &&
+        superset init &&
+        /usr/bin/run-server.sh
     environment:
       SUPERSET_SECRET_KEY: "supersecretkey"
       SUPERSET_LOAD_EXAMPLES: "no"
