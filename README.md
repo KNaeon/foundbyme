@@ -45,19 +45,35 @@ pip install -r requirements.txt
 make html
 ```
 
-## 🌐 Website
+## 🌐 Website & Documentation
 
- - Live site: https://knaeon.github.io/foundbyme/
+FoundByMe는 사용자 경험을 극대화하기 위해 새롭게 디자인된 웹사이트를 제공합니다.
 
- - Source Code: The website source code is maintained in the gh-pages branch.(Jekyll/just-the-docs)
- 
- - Preview locally: You need to checkout the gh-pages branch to view the website source
+### ✨ [NEW] Custom Theme Site (Recommended)
+* **URL:** [https://kimhabin2.github.io/foundbyme-custom/](https://kimhabin2.github.io/foundbyme-custom/)
+* **Features:**
+    * 🎨 **Custom Design:** Apache Hadoop 스타일의 동적 애니메이션 및 브랜드 컬러 적용
+    * 📱 **Better UX:** 반응형 레이아웃, 다크 모드, 카드형 UI
+    * 📚 **Enhanced Docs:** 최신 설치 가이드(Docker) 및 기술 기여 전략 포함
+
+### 🏚️ Legacy Site (Old)
+* **URL:** [https://knaeon.github.io/foundbyme/](https://knaeon.github.io/foundbyme/)
+* **Note:** 기본 `just-the-docs` 테마를 사용한 구버전입니다.
+
+---
+
+### 💻 Preview Locally (Custom Site)
+새로운 커스텀 사이트를 로컬에서 실행하려면 `foundbyme-custom` 폴더에서 다음 명령어를 실행하세요.
 
 ```bash
-git checkout gh-pages
+# 1. 커스텀 테마 폴더로 이동
+cd foundbyme-custom
+
+# 2. 의존성 설치 및 실행
 bundle install
 bundle exec jekyll serve
 ```
+
 ---
 
 ## ✨ Features
