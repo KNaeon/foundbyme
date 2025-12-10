@@ -140,9 +140,11 @@ def search(q: str, session_id: str = "default"):
             "score": res["score"], 
             "vector_3d": doc_3d[i].tolist() if len(doc_3d) > i else [0,0,0],
             "preview": (res["doc"][:200] if res["doc"] else "").replace("\n", " "),
-            "url": f"http://localhost:8000/files/{session_id}/{meta.get('title')}.{meta.get('ext')}"
+            "url": f"/api/files/{session_id}/{meta.get('title')}.{meta.get('ext')}"
         }) 
         
+    # 사용자 요청: query_3d의 첫 번째 값에서 3을 뺌 
+   
     
     return {
         "query": q,
@@ -422,7 +424,7 @@ def galaxy_view(session_id: str = "default", query: Optional[str] = None, db: Se
                 "label": meta["label"],
                 "page": meta.get("page", 1),
                 "isQuery": meta["isQuery"],
-                "url": f"http://localhost:8000/files/{session_id}/{meta.get('filename')}.{meta.get('type')}#page={meta.get('page', 1)}" if not meta["isQuery"] else None
+                "url": f"/api/files/{session_id}/{meta.get('filename')}.{meta.get('type')}#page={meta.get('page', 1)}" if not meta["isQuery"] else None
             })
             
         return points

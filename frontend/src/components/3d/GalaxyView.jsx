@@ -230,10 +230,6 @@ const GalaxyView = () => {
                     point.position,
                   ]}
                   color="white"
-                  vertexColors={[
-                    "white",
-                    "#FDE047",
-                  ]}
                   lineWidth={1.5}
                   dashed={true}
                   dashScale={2}
