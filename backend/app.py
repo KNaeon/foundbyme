@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 
-from db.db import get_db
+from db.db import get_db, Base, engine
 from db.models import Document, SearchLog
 from loader import load_text
 from indexer import rebuild_index, chroma
@@ -26,6 +26,9 @@ UPLOAD_DIR = "./data"
 ALLOWED_EXT = {"txt", "pdf", "md", "docx", "pptx", "jpg", "jpeg", "png", "bmp", "tiff"}
 
 app = FastAPI(title="FoundByMe API (Chroma + PostgreSQL)")
+
+# DB 테이블 자동 생성
+Base.metadata.create_all(bind=engine)
 
 # 🚀 Re-ranker 모델 로드 (정확도 향상용)
 # Cross-Encoder는 속도는 느리지만 정확도가 매우 높음

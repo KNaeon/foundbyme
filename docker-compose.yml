@@ -36,8 +36,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-ossdb}
       - CHROMA_PERSIST_DIR=/app/chroma_store
     volumes:
-      - ./RAG-feat-Post/backend/data:/app/data
-      - ./RAG-feat-Post/backend/chroma_store:/app/chroma_store
+      - ./backend/data:/app/data
+      - ./backend/chroma_store:/app/chroma_store
     depends_on:
       - db
     networks:
