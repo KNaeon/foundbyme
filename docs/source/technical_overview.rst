@@ -13,8 +13,11 @@ FoundByMe utilizes a **Hybrid Storage Strategy** combining a Vector Database and
    * **PostgreSQL (RDBMS)**: Ensures **Data Integrity (ACID)** for metadata and provides powerful filtering capabilities for file management.
 
 .. image:: _static/images/System_Architecture.png
-.. image:: _static/images/System_Procedure.png   
    :alt: System Architecture Diagram
+   :align: center
+
+.. image:: _static/images/System_Procedure.png
+   :alt: System Procedure Diagram
    :align: center
 
 Tech Stack
