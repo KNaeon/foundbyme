@@ -117,9 +117,6 @@ print(results)
 
 # 🐳 Run with Docker (Recommended)
 
-Docker로 실행하면 **백엔드 + 프론트엔드 + DB + Chroma** 모든 구성요소가
-자동으로 올라옵니다.\
-환경 충돌 없이 바로 실행 가능!
 
 ## 1️⃣ Build & Start Containers
 
