@@ -1,9 +1,20 @@
-Maintenance and Troubleshooting
-===============================
+Contributing
+============
 
-Common Issues
--------------
+We welcome contributions! Please follow our collaboration standards.
 
-1. Build errors in Sphinx  
-2. Missing embeddings  
-3. Vector DB initialization failure
+Git Flow Strategy
+-----------------
+* **main**: Production-ready code.
+* **develop**: Integration branch for features.
+* **feature/\***: Individual feature development.
+
+How to Contribute
+-----------------
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/NewFeature`).
+3.  Commit your changes.
+4.  Push to the branch.
+5.  Open a **Pull Request**.
+
+Please refer to `CONTRIBUTING.md` in the repository for more details.
