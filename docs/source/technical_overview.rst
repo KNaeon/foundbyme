@@ -12,8 +12,8 @@ FoundByMe utilizes a **Hybrid Storage Strategy** combining a Vector Database and
    * **ChromaDB (Vector Store)**: Specialized for handling unstructured data and ensuring **High-Speed Similarity Search**.
    * **PostgreSQL (RDBMS)**: Ensures **Data Integrity (ACID)** for metadata and provides powerful filtering capabilities for file management.
 
-.. image:: _static/images/System Architecture.png
-.. image:: _static/images/System Procedure.png   
+.. image:: _static/images/System_Architecture.png
+.. image:: _static/images/System_Procedure.png   
    :alt: System Architecture Diagram
    :align: center
 

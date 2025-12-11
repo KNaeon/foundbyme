@@ -4,7 +4,7 @@ Welcome to FoundByMe Documentation
 **FoundByMe** is a **Context-Based Local Document Search System** that connects scattered knowledge on your PC into one.
 Unlike traditional keyword search, it utilizes **RAG (Retrieval-Augmented Generation)** to understand the semantic context of your queries.
 
-.. image:: _static/images/System Architecture.png
+.. image:: _static/images/System_Architecture.png
    :alt: FoundByMe Architecture
    :align: center
 
