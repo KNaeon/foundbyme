@@ -113,7 +113,35 @@ results = fbm.query("What are you finding for?")
 print(results)
 ```
 
----
+------------------------------------------------------------------------
+
+# 🐳 Run with Docker (Recommended)
+
+Docker로 실행하면 **백엔드 + 프론트엔드 + DB + Chroma** 모든 구성요소가
+자동으로 올라옵니다.\
+환경 충돌 없이 바로 실행 가능!
+
+## 1️⃣ Build & Start Containers
+
+``` bash
+docker compose up --build -d
+```
+
+## 2️⃣ Available Services
+
+  Service                  URL                          Description
+  ------------------------ ---------------------------- ---------------
+  **Frontend (React)**     http://localhost             웹 UI
+  **Backend (FastAPI)**    http://localhost:8000        API 서버
+  **API Docs (Swagger)**   http://localhost:8000/docs   테스트 & 문서
+
+## 3️⃣ Stop Containers
+
+``` bash
+docker compose down
+```
+
+----
 
 ## 📝 License
 Distributed under the **Apache License 2.0**.  
