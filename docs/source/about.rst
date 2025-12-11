@@ -13,7 +13,7 @@ The Team
 Developed by students at **Sejong University, Dept. of Data Science**.
 
 * **Naeon Kang** (Project Leader): Backend Dev, Text Pipeline, Testing.
-* **Habin Kim** (Docs Lead): Documentation, Presentation, User Guides.
+* **Habin Kim** (Docs Lead): Documentation(Web,docs), Presentation, User Guides.
 * **Jinho Lee** (Design Lead): Frontend Dev, UI/UX Design.
 
 License
