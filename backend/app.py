@@ -44,7 +44,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+print('1')
 class ChatRequest(BaseModel):
     query: str
     session_id: str = "default"
@@ -88,7 +88,7 @@ def search(q: str, session_id: str = "default"):
     pairs = [[q, doc_text] for doc_text in docs]
     scores = reranker.predict(pairs)
 
-    # 점수와 인덱스를 묶어서 정렬 (점수 높은 순)
+    # 점수와 인덱스를 묶어서 정렬 (점수 높은)
     scored_results = []
     for i in range(real_k):
         scored_results.append({
